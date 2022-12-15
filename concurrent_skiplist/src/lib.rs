@@ -1,8 +1,7 @@
-extern crate core;
 
-use core::panicking::panic;
 
-mod node;
+pub mod node;
+use crate::node::Node;
 const MAX_HEIGHT:i32 =12;
 const K_BRANCHING:usize=4;
 pub struct ConcurrentSkiplist<K:Ord,V>{
@@ -16,12 +15,21 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
     }
     fn random_height(&self)->i32{
         let mut height:i32 = 1;
-        while height < MAX_HEIGHT && rnd_.OneIn(K_BRANCHING) {
-            height+=1;
-        }
+        // while height < MAX_HEIGHT && rnd_.OneIn(K_BRANCHING) {
+        //     height+=1;
+        // }
         assert!(height > 0);
-        assert!(height <= kMaxHeight);
+        assert!(height <= MAX_HEIGHT);
         return height;
+
+    }
+    fn key_is_after_node(&self,k:&K,node:*mut Node<K, V>)->bool{
+        return (!node.is_null()) && (
+            node.k.cmp(k).is_lt()
+            // compare_(n->key, key) < 0
+        );
+    }
+    fn find_greater_or_equal(&self){
 
     }
 }
