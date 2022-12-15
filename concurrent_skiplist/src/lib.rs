@@ -6,6 +6,8 @@ use std::borrow::BorrowMut;
 use std::collections::LinkedList;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Mutex;
+use rand::Rng;
+
 use crate::node::Node;
 
 const MAX_HEIGHT:i32 =12;
@@ -17,10 +19,6 @@ pub struct ConcurrentSkiplist<K:Ord,V>{
     head:*mut Node<K, V>,
     // free_list:Mutex<LinkedList<V>>,
 }
-// thread_local! {
-//     // Could add pub to make it public to whatever Foo already is public to.
-//     static THREAD_LOCAL_FREELIST: RefCell<LinkedList<V>> = Default::default();
-// }
 impl<K:Ord,V> ConcurrentSkiplist<K,V> {
 
     pub fn new() -> ConcurrentSkiplist<K, V> {
@@ -37,9 +35,10 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
     }
     fn random_height(&self)->i32{
         let mut height:i32 = 1;
-        // while height < MAX_HEIGHT && rnd_.OneIn(K_BRANCHING) {
-        //     height+=1;
-        // }
+        while height < MAX_HEIGHT && rand::thread_rng()
+            .gen_range(0..K_BRANCHING)==0 {
+            height+=1;
+        }
         assert!(height > 0);
         assert!(height <= MAX_HEIGHT);
         return height;
