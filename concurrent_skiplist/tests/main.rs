@@ -9,7 +9,7 @@ fn insert() {
     let mut rng = rand::thread_rng();
     let mut std_map = BTreeMap::<i32, i32>::new();
     let our_map = ConcurrentSkiplist::<i32, i32>::new(
-        ConcurrentSkiplistMode::EachNodeEachLevelLock);
+        ConcurrentSkiplistMode::NoLock);
 
     // 批量插入数据
     for key in 1..=10000 {
@@ -41,7 +41,7 @@ fn delete() {
     let mut rng = rand::thread_rng();
     let mut std_map = BTreeMap::<i32, i32>::new();
     let our_map = ConcurrentSkiplist::<i32, i32>::new(
-        ConcurrentSkiplistMode::EachNodeEachLevelLock
+        ConcurrentSkiplistMode::NoLock
     );
 
     // 批量插入数据
@@ -94,7 +94,7 @@ fn delete() {
 #[test]
 fn single_thread() {
     let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
-        ConcurrentSkiplistMode::EachNodeEachLevelLock
+        ConcurrentSkiplistMode::NoLock
     ));
     for i in 1..2 {
         let map_ = map.clone();
@@ -111,19 +111,21 @@ fn single_thread() {
         });
     }
 }
+
 #[test]
 fn multithread() {
     let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
-        ConcurrentSkiplistMode::EachNodeEachLevelLock
+        ConcurrentSkiplistMode::NoLock
         // ConcurrentSkiplistMode::OneBigLock
     ));
     for i in 1..10 {
         let map_ = map.clone();
         thread::spawn(move || {
-            for j in i * 1000..(i + 1) * 1000 {
+            let time=10000000;
+            for j in i * time..(i + 1) * time {
                 map_.insert_or_update(j, j);
             }
-            for j in i * 1000..(i + 1) * 1000 {
+            for j in i * time..(i + 1) * time {
                 let end = j + 1;
                 let v = map_.get(&j, &end);
                 assert_eq!(v.len(), 1);

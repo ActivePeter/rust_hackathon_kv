@@ -9,3 +9,10 @@ edition = "2021"
 atomic-option = "0.1.2"
 rand = "0.8.5"
 
+[dev-dependencies]
+criterion = "0.4.0"
+
+[[bench]]
+name = "benchall"
+harness = false
+

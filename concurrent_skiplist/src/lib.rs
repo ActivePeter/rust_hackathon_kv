@@ -42,7 +42,7 @@ unsafe impl<K:Ord,V> Sync for ConcurrentSkiplist<K,V> {}
 #[derive(PartialEq)]
 pub enum ConcurrentSkiplistMode{
     OneBigLock,
-    EachNodeEachLevelLock
+    NoLock
 }
 // unsafe impl<K:Ord,V> Send for ConcurrentSkiplist<K,V> {}
 impl<K:Ord,V> ConcurrentSkiplist<K,V> {
@@ -149,6 +149,11 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         }
     }
     fn insert(&self, key: K, value: V) -> Option<V> {
+        let _hold_big=if self.mode==ConcurrentSkiplistMode::OneBigLock{
+            Some(self.insert_big_mu.lock())
+        }else{
+            None
+        };
         // TODO(opt): We can use a barrier-free variant of FindGreaterOrEqual()
         // here since Insert() is externally synchronized.
 
@@ -177,11 +182,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         }
 
         //笨办法，加大锁
-        let _hold_big=if self.mode==ConcurrentSkiplistMode::OneBigLock{
-            Some(self.insert_big_mu.lock())
-        }else{
-            None
-        };
+
 
         // 使用随机数获取该节点的插入高度
         let height = self.random_height();
@@ -214,16 +215,16 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             // let v=prev[i].;
             unsafe {
                 // 首先将x（第一个大于等于插入key）的next 指向prev 的下一个节点
-
-                let _hold1=if self.mode==ConcurrentSkiplistMode::EachNodeEachLevelLock{
-                    Some((*prev[i as usize]).insert_mu[i as usize].lock())
-                } else{
-                    None
-                };
+                // 这个不需要加锁，因为还没有真正进入
+                (*x).nobarrier_set_next(self.mode.borrow(),i, (*prev[i as usize]).nobarrier_next(
+                    self.mode.borrow(), i, true));
+                // let _hold1=if self.mode==ConcurrentSkiplistMode::EachNodeEachLevelLock{
+                //     Some((*prev[i as usize]).insert_mu[i as usize].lock())
+                // } else{
+                //     None
+                // };
                 // {
                 //     let _hold2=(*x).insert_mu[i as usize].lock();
-                    (*x).nobarrier_set_next(self.mode.borrow(),i, (*prev[i as usize]).nobarrier_next(
-                        self.mode.borrow(), i, true));
                 // }
                 //prev下一个设置为x
                 (*prev[i as usize]).set_next(self.mode.borrow(),i,x,true);
