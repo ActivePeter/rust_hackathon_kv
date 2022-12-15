@@ -5,7 +5,8 @@ pub mod node;
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::LinkedList;
 use std::sync::atomic::{AtomicI32, Ordering};
-use std::sync::Mutex;
+use parking_lot::Mutex;
+// use std::sync::Mutex;
 use rand::Rng;
 
 use crate::node::Node;

@@ -8,6 +8,10 @@ edition = "2021"
 [dependencies]
 atomic-option = "0.1.2"
 rand = "0.8.5"
+#spinlock = "0.1.2"
+parking_lot = "0.12.1"
+crossbeam = "0.8"
+crossbeam-skiplist = "0.1"
 
 [dev-dependencies]
 criterion = "0.4.0"
