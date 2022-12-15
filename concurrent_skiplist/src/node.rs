@@ -6,27 +6,37 @@ pub struct Node<K,V>{
     next:Vec<AtomicPtr<Node<K,V>>>
 }
 impl <K,V> Node<K,V>{
-    pub fn new_none(height:int) -> Node<K, V> {
+    pub fn new_none(height:int) -> *mut Node<K, V> {
         let mut vec=Vec::new();
         for _ in 0..height+1 {
             vec.push(AtomicPtr::new(std::ptr::null_mut()));
         }
-        Node{
-            k: None,
-            v: None,
-            next: vec,
-        }
+        // std::boxed::into_raw();
+        Box::into_raw(
+            Box::new(
+                Node{
+                    k: None,
+                    v: None,
+                    next: vec,
+                }
+            )
+        )
     }
-    pub fn new(k:K, v:V, height:int) -> Node<K, V> {
+    pub fn new(k:K, v:V, height:int) -> *mut Node<K, V> {
         let mut vec=Vec::new();
         for _ in 0..height+1 {
             vec.push(AtomicPtr::new(std::ptr::null_mut()));
         }
-        Node{
-            k:Some(k),
-            v:Some(v),
-            next: vec,
-        }
+        Box::into_raw(
+            Box::new(
+                Node{
+                    k:Some(k),
+                    v:Some(v),
+                    next: vec,
+                }
+            )
+        )
+
     }
     pub fn next(&self, n:i32) -> *mut Node<K, V> {
         self.next[n as usize].load(Ordering::Acquire)
