@@ -1,4 +1,4 @@
-use concurrent_skiplist::{ConcurrentSkiplist, IndexOperate};
+use concurrent_skiplist::{ConcurrentSkiplist, ConcurrentSkiplistMode, IndexOperate};
 use rand::Rng;
 use std::{collections::BTreeMap, sync::Arc, thread};
 
@@ -8,7 +8,8 @@ fn insert() {
     // 初始化
     let mut rng = rand::thread_rng();
     let mut std_map = BTreeMap::<i32, i32>::new();
-    let our_map = ConcurrentSkiplist::<i32, i32>::new();
+    let our_map = ConcurrentSkiplist::<i32, i32>::new(
+        ConcurrentSkiplistMode::EachNodeEachLevelLock);
 
     // 批量插入数据
     for key in 1..=10000 {
@@ -39,7 +40,9 @@ fn delete() {
     // 初始化
     let mut rng = rand::thread_rng();
     let mut std_map = BTreeMap::<i32, i32>::new();
-    let our_map = ConcurrentSkiplist::<i32, i32>::new();
+    let our_map = ConcurrentSkiplist::<i32, i32>::new(
+        ConcurrentSkiplistMode::EachNodeEachLevelLock
+    );
 
     // 批量插入数据
     for key in 1..=10000 {
@@ -90,7 +93,9 @@ fn delete() {
 
 #[test]
 fn single_thread() {
-    let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new());
+    let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
+        ConcurrentSkiplistMode::EachNodeEachLevelLock
+    ));
     for i in 1..2 {
         let map_ = map.clone();
         thread::spawn(move || {
@@ -108,7 +113,9 @@ fn single_thread() {
 }
 #[test]
 fn multithread() {
-    let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new());
+    let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
+        ConcurrentSkiplistMode::EachNodeEachLevelLock
+    ));
     for i in 1..10 {
         let map_ = map.clone();
         thread::spawn(move || {

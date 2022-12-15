@@ -1,5 +1,7 @@
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Mutex, RwLock};
+use crate::ConcurrentSkiplistMode;
+use crate::ConcurrentSkiplistMode::EachNodeEachLevelLock;
 // use atomic_option::AtomicOption;
 
 pub struct Node<K,V>{
@@ -53,20 +55,26 @@ impl <K,V> Node<K,V>{
     pub fn unwrap_key_ref(&self)->&K{
         self.k.as_ref().unwrap()
     }
-    pub fn next(&self, n:i32) -> *mut Node<K, V> {
-        let _hold1=self.insert_mu[n as usize].lock();
-        self.next[n as usize].load(Ordering::Acquire)
+    pub fn next(&self,mode:&ConcurrentSkiplistMode, n:i32) -> *mut Node<K, V> {
+        if *mode==EachNodeEachLevelLock{
+
+            let _hold1=self.insert_mu[n as usize].lock();
+            self.next[n as usize].load(Ordering::Acquire)
+        }else{
+
+            self.next[n as usize].load(Ordering::Acquire)
+        }
     }
-    pub fn set_next(&self,n:i32,node:*mut Node<K, V>,locked:bool){
-        if !locked{
+    pub fn set_next(&self,mode:&ConcurrentSkiplistMode,n:i32,node:*mut Node<K, V>,locked:bool){
+        if *mode==EachNodeEachLevelLock&&!locked{
             let _hold1=self.insert_mu[n as usize].lock();
             self.next[n as usize].store(node,Ordering::Release);
         }else{
             self.next[n as usize].store(node,Ordering::Release);
         }
     }
-    pub fn nobarrier_next(&self,n:i32,locked:bool) -> *mut Node<K, V> {
-        if locked {
+    pub fn nobarrier_next(&self,mode:&ConcurrentSkiplistMode,n:i32,locked:bool) -> *mut Node<K, V> {
+        if locked ||*mode!=EachNodeEachLevelLock{
             self.next[n as usize].load(Ordering::Relaxed)
         }else{
             let _hold1=self.insert_mu[n as usize].lock();
@@ -74,9 +82,13 @@ impl <K,V> Node<K,V>{
         }
 
     }
-    pub fn nobarrier_set_next(&self,n:i32,node:*mut Node<K, V>){
-        let _hold1=self.insert_mu[n as usize].lock();
-        self.next[n as usize].store(node,Ordering::Relaxed);
+    pub fn nobarrier_set_next(&self,mode:&ConcurrentSkiplistMode,n:i32,node:*mut Node<K, V>){
+        if *mode==EachNodeEachLevelLock{
+            let _hold1=self.insert_mu[n as usize].lock();
+            self.next[n as usize].store(node,Ordering::Relaxed);
+        }else{
+            self.next[n as usize].store(node,Ordering::Relaxed);
+        }
     }
 
 }

@@ -2,7 +2,7 @@
 
 pub mod node;
 
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::LinkedList;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Mutex;
@@ -17,7 +17,8 @@ pub struct ConcurrentSkiplist<K:Ord,V>{
     // v:V,
     max_height:AtomicI32,
     head:*mut Node<K, V>,
-    insert_big_mu:Mutex<()>
+    insert_big_mu:Mutex<()>,
+    mode:ConcurrentSkiplistMode
     // free_list:Mutex<LinkedList<V>>,
 }
 
@@ -32,11 +33,15 @@ unsafe impl<K:Ord,V> Sync for ConcurrentSkiplist<K,V> {}
 // }
 
 // impl<K:Ord,V> Copy for ConcurrentSkiplist<K,V> {}
-
+#[derive(PartialEq)]
+pub enum ConcurrentSkiplistMode{
+    OneBigLock,
+    EachNodeEachLevelLock
+}
 // unsafe impl<K:Ord,V> Send for ConcurrentSkiplist<K,V> {}
 impl<K:Ord,V> ConcurrentSkiplist<K,V> {
 
-    pub fn new() -> ConcurrentSkiplist<K, V> {
+    pub fn new(mode:ConcurrentSkiplistMode) -> ConcurrentSkiplist<K, V> {
         let head=Node::new_none(MAX_HEIGHT);
 
         ConcurrentSkiplist{
@@ -44,6 +49,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             head,
             // free_list: LinkedList::new(),
             insert_big_mu: Mutex::new(()),
+            mode,
         }
     }
     fn get_max_height(&self) -> i32 {
@@ -73,7 +79,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         let mut level=self.get_max_height()-1;
         loop {
             unsafe {
-                let next=(*x).next(level);
+                let next=(*x).next(&self.mode,level);
                 if self.key_is_after_node(k,next){
                     x=next;
                 }else{
@@ -96,7 +102,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         loop {
             // assert(x == head_ || compare_(x->key, key) < 0);
             let next = unsafe {
-                (*x).next(level)
+                (*x).next(self.mode.borrow(),level)
             };
             if next.is_null() ||
                 unsafe {
@@ -120,7 +126,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         let mut level = self.get_max_height() - 1;
         loop {
             let mut next =unsafe{
-                (*x).next(level)
+                (*x).next(self.mode.borrow(),level)
             };
             if next.is_null() {
                 if level == 0 {
@@ -160,7 +166,11 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         }
 
         //笨办法，加大锁
-        // let hold=self.insert_big_mu.lock();
+        let _hold_big=if self.mode==ConcurrentSkiplistMode::OneBigLock{
+            Some(self.insert_big_mu.lock())
+        }else{
+            None
+        };
 
         // 使用随机数获取该节点的插入高度
         let height = self.random_height();
@@ -194,15 +204,19 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             // let v=prev[i].;
             unsafe {
                 // 首先将x（第一个大于等于插入key）的next 指向prev 的下一个节点
-                let _hold1=(*prev[i as usize]).insert_mu[i as usize].lock();
+
+                let _hold1=if self.mode==ConcurrentSkiplistMode::EachNodeEachLevelLock{
+                    Some((*prev[i as usize]).insert_mu[i as usize].lock())
+                } else{
+                    None
+                };
                 // {
                 //     let _hold2=(*x).insert_mu[i as usize].lock();
-                    (*x).nobarrier_set_next(
-                        i,
-                        (*prev[i as usize]).nobarrier_next(i,true));
+                    (*x).nobarrier_set_next(self.mode.borrow(),i, (*prev[i as usize]).nobarrier_next(
+                        self.mode.borrow(), i, true));
                 // }
                 //prev下一个设置为x
-                (*prev[i as usize]).set_next(i,x,true);
+                (*prev[i as usize]).set_next(self.mode.borrow(),i,x,true);
             }
 
             // x->NoBarrier_SetNext(i, prev[i]->NoBarrier_Next(i));
@@ -259,7 +273,7 @@ impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
                     ret.push(v);
                 }
                 //切换到下一个
-                gr_or_eq=(*gr_or_eq).next(0);
+                gr_or_eq=(*gr_or_eq).next(self.mode.borrow(),0);
                 //为null 或 >=end
 
             }
@@ -286,7 +300,7 @@ impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
                     ret.push(takeout.unwrap());
                 }
                 //切换到下一个
-                gr_or_eq=(*gr_or_eq).next(0);
+                gr_or_eq=(*gr_or_eq).next(self.mode.borrow(),0);
 
             }
         }
