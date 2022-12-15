@@ -19,6 +19,20 @@ pub struct ConcurrentSkiplist<K:Ord,V>{
     head:*mut Node<K, V>,
     // free_list:Mutex<LinkedList<V>>,
 }
+
+unsafe impl<K:Ord,V> Send for ConcurrentSkiplist<K,V> {}
+unsafe impl<K:Ord,V> Sync for ConcurrentSkiplist<K,V> {}
+
+// impl<K:Ord,V> Clone for ConcurrentSkiplist<K,V> {
+//     fn clone(&self) -> Self {
+//         unreachable!();
+//         // Self { max_height: Default::default(),  head: () }
+//     }
+// }
+
+// impl<K:Ord,V> Copy for ConcurrentSkiplist<K,V> {}
+
+// unsafe impl<K:Ord,V> Send for ConcurrentSkiplist<K,V> {}
 impl<K:Ord,V> ConcurrentSkiplist<K,V> {
 
     pub fn new() -> ConcurrentSkiplist<K, V> {

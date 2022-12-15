@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use std::thread;
 use concurrent_skiplist::ConcurrentSkiplist;
 
 //todo
@@ -13,5 +15,18 @@ fn insert() {
 
     for number in 1..1000 {
         map.insert(number, number);
+    }
+}
+
+
+#[test]
+fn multithread(){
+    let map=
+        Arc::new(ConcurrentSkiplist::<i32, i32>::new());
+    for i in 1..10 {
+        let map_=map.clone();
+        thread::spawn(move || {
+            map_.insert(i,i);
+        });
     }
 }
