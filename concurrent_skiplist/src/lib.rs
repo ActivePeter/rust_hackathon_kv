@@ -43,7 +43,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
     }
     fn find_greater_or_equal(
         &self, k:&K,
-        prev: &[*mut Node<K, V>]) -> *mut Node<K, V> {
+        mut prev: Option<&mut [*mut Node<K, V>]>) -> *mut Node<K, V> {
         let mut x=self.head;
         let mut level=self.get_max_height()-1;
         loop {
@@ -52,8 +52,9 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
                 if self.key_is_after_node(k,next){
                     x=next;
                 }else{
-                    // TODO prev
-                    // if (prev != nullptr) prev[level] = x;
+                    if let Some( prev)=prev.as_mut(){
+                        prev[level as usize] = x;
+                    }
                     if level == 0 {
                         return next;
                     } else {
@@ -115,7 +116,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             :[*mut Node<K, V>; MAX_HEIGHT as usize]
             = [std::ptr::null_mut();MAX_HEIGHT as usize];
         let mut x = self.find_greater_or_equal(
-            &key, &prev);
+            &key, Some(&mut prev));
 
         // Our data structure does not allow duplicate insertion
         // assert!(x == nullptr || (key.cmp(x.k.unwrap()).is_ne());
@@ -151,7 +152,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
                 (*x).nobarrier_set_next(
                     i,
                     (*prev[i as usize]).nobarrier_next(i));
-                    (*prev[i as usize]).set_next(i,x);
+                (*prev[i as usize]).set_next(i,x);
             }
 
             // x->NoBarrier_SetNext(i, prev[i]->NoBarrier_Next(i));
