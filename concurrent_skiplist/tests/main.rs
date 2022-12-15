@@ -115,6 +115,7 @@ fn single_thread() {
 fn multithread() {
     let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
         ConcurrentSkiplistMode::EachNodeEachLevelLock
+        // ConcurrentSkiplistMode::OneBigLock
     ));
     for i in 1..10 {
         let map_ = map.clone();

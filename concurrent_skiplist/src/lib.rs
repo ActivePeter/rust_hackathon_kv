@@ -31,7 +31,13 @@ unsafe impl<K:Ord,V> Sync for ConcurrentSkiplist<K,V> {}
 //         // Self { max_height: Default::default(),  head: () }
 //     }
 // }
-
+// fn check_prevs(prev:&[*mut Node<K, V>],len:i32){
+//     for i in 0..len{
+//         if prev[i].is_null(){
+//             unreachable!()
+//         }
+//     }
+// }
 // impl<K:Ord,V> Copy for ConcurrentSkiplist<K,V> {}
 #[derive(PartialEq)]
 pub enum ConcurrentSkiplistMode{
@@ -72,11 +78,12 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             // compare_(n->key, key) < 0
         );
     }
+
     fn find_greater_or_equal(
-        &self, k:&K,
+        &self, k:&K,max_height:i32,
         mut prev: Option<&mut [*mut Node<K, V>]>) -> *mut Node<K, V> {
         let mut x=self.head;
-        let mut level=self.get_max_height()-1;
+        let mut level=max_height-1;
         loop {
             unsafe {
                 let next=(*x).next(&self.mode,level);
@@ -87,6 +94,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
                         prev[level as usize] = x;
                     }
                     if level == 0 {
+                        // check_prevs(prev,self.get_max_height());
                         return next;
                     } else {
                         // Switch to next list
@@ -149,8 +157,11 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             :[*mut Node<K, V>; MAX_HEIGHT as usize]
             = [std::ptr::null_mut();MAX_HEIGHT as usize];
         // 使用FindGreaterOrEqual函数找到第一个大于等于插入key的位置
+        // 将对应节点的前驱全部存入prev
+
+        let max_height=self.get_max_height();
         let mut x = self.find_greater_or_equal(
-            &key, Some(&mut prev));
+            &key, max_height,Some(&mut prev));
 
         // Our data structure does not allow duplicate insertion
         // assert!(!x.is_null() && (key.cmp(x.k.unwrap()).is_ne());
@@ -174,7 +185,6 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
 
         // 使用随机数获取该节点的插入高度
         let height = self.random_height();
-        let max_height=self.get_max_height();
         // 大于当前skiplist 最高高度的话，将多出的来的高度的prev 设置为哨兵节点
         if height > max_height {
             for i in max_height..height{
@@ -259,7 +269,7 @@ pub trait IndexOperate<K: Ord, V> {
 
 impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
     fn get(&self, key: &K, range_end: &K) -> Vec<&V>{
-        let mut gr_or_eq =self.find_greater_or_equal(key, None);
+        let mut gr_or_eq =self.find_greater_or_equal(key, self.get_max_height(),None);
 
         let mut ret =Vec::<&V>::new();
         ret.reserve(1000);
@@ -282,7 +292,7 @@ impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
     }
     /// delete a range of keys in [key, range_end]
     fn delete(&self, key: &K, range_end: &K) -> Vec<V>{
-        let mut gr_or_eq =self.find_greater_or_equal(key, None);
+        let mut gr_or_eq =self.find_greater_or_equal(key, self.get_max_height(),None);
 
         let mut ret =Vec::<V>::new();
         ret.reserve(1000);
