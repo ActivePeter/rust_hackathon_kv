@@ -25,7 +25,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         let head=Node::new_none(MAX_HEIGHT);
 
         ConcurrentSkiplist{
-            max_height: AtomicI32::new(0),
+            max_height: AtomicI32::new(1),
             head,
             // free_list: LinkedList::new(),
         }
@@ -133,8 +133,9 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         // Our data structure does not allow duplicate insertion
         // assert!(!x.is_null() && (key.cmp(x.k.unwrap()).is_ne());
         unsafe {
-            if !(!x.is_null() && (key.cmp((*x).unwrap_key_ref()).is_ne())) {
-                unreachable!();
+            if !x.is_null() && (key.cmp((*x).unwrap_key_ref()).is_eq()) {
+
+                unreachable!("not support same key");
             }
         }
         // 使用随机数获取该节点的插入高度
