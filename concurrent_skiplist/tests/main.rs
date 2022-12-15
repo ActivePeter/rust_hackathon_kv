@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::thread;
-use concurrent_skiplist::ConcurrentSkiplist;
+use concurrent_skiplist::{ConcurrentSkiplist, IndexOperate};
 use rand::Rng;
 use std::collections::BTreeMap;
 
@@ -20,12 +20,12 @@ fn insert() {
     for key in 1..10000 {
         let value = rng.gen_range(-10000..10000);
         std_map.insert(key, value);
-        our_map.insert(key, value);
+        our_map.insert_or_update(key, value);
     }
     
     for key in 1..10000 {
         // FIXME 怎么才能 get value
-        assert_eq!(std_map.get(&key), our_map.get(key));
+        assert_eq!(std_map.get(&key), our_map.get(&key));
     }
 }
 

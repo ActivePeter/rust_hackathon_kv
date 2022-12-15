@@ -132,7 +132,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             }
         }
     }
-    pub fn insert(&self, key: K, value: V) -> Option<V> {
+    fn insert(&self, key: K, value: V) -> Option<V> {
         // TODO(opt): We can use a barrier-free variant of FindGreaterOrEqual()
         // here since Insert() is externally synchronized.
 
@@ -224,7 +224,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
 // }
 /// Operations of Index
 /// trait with generic type
-pub(crate) trait IndexOperate<K: Ord, V> {
+pub trait IndexOperate<K: Ord, V> {
     /// Get a range of keys in [key, range_end]
     fn get(&self, key: &K, range_end: &K) -> Vec<&V>;
     /// delete a range of keys in [key, range_end]
@@ -283,7 +283,7 @@ impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
         ret
     }
     /// insert of update a key
-    fn insert_or_update(&self, key: K, value: V) -> Option<V>{
+    pub fn insert_or_update(&self, key: K, value: V) -> Option<V>{
         self.insert(key,value)
     }
 
