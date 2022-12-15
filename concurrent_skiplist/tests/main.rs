@@ -1,6 +1,8 @@
 use concurrent_skiplist::{ConcurrentSkiplist, IndexOperate};
 use rand::Rng;
 use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::thread;
 
 #[test]
 /// 单线程批量插入，验证 ConcurrentSkiplist 内容

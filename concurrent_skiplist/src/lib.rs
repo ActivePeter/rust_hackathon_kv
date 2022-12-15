@@ -17,6 +17,7 @@ pub struct ConcurrentSkiplist<K:Ord,V>{
     // v:V,
     max_height:AtomicI32,
     head:*mut Node<K, V>,
+    insert_big_mu:Mutex<()>
     // free_list:Mutex<LinkedList<V>>,
 }
 
@@ -42,6 +43,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             max_height: AtomicI32::new(1),
             head,
             // free_list: LinkedList::new(),
+            insert_big_mu: Mutex::new(()),
         }
     }
     fn get_max_height(&self) -> i32 {
@@ -156,6 +158,10 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
                 // (*x).v
             }
         }
+
+        //笨办法，加大锁
+        // let hold=self.insert_big_mu.lock();
+
         // 使用随机数获取该节点的插入高度
         let height = self.random_height();
         let max_height=self.get_max_height();
@@ -188,11 +194,15 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             // let v=prev[i].;
             unsafe {
                 // 首先将x（第一个大于等于插入key）的next 指向prev 的下一个节点
-                (*x).nobarrier_set_next(
-                    i,
-                    (*prev[i as usize]).nobarrier_next(i));
+                let _hold1=(*prev[i as usize]).insert_mu[i as usize].lock();
+                // {
+                //     let _hold2=(*x).insert_mu[i as usize].lock();
+                    (*x).nobarrier_set_next(
+                        i,
+                        (*prev[i as usize]).nobarrier_next(i));
+                // }
                 //prev下一个设置为x
-                (*prev[i as usize]).set_next(i,x);
+                (*prev[i as usize]).set_next(i,x,true);
             }
 
             // x->NoBarrier_SetNext(i, prev[i]->NoBarrier_Next(i));
