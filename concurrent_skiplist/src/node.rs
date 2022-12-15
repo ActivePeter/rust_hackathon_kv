@@ -65,9 +65,14 @@ impl <K,V> Node<K,V>{
             self.next[n as usize].store(node,Ordering::Release);
         }
     }
-    pub fn nobarrier_next(&self,n:i32) -> *mut Node<K, V> {
-        let _hold1=self.insert_mu[n as usize].lock();
-        self.next[n as usize].load(Ordering::Relaxed)
+    pub fn nobarrier_next(&self,n:i32,locked:bool) -> *mut Node<K, V> {
+        if locked {
+            self.next[n as usize].load(Ordering::Relaxed)
+        }else{
+            let _hold1=self.insert_mu[n as usize].lock();
+            self.next[n as usize].load(Ordering::Relaxed)
+        }
+
     }
     pub fn nobarrier_set_next(&self,n:i32,node:*mut Node<K, V>){
         let _hold1=self.insert_mu[n as usize].lock();

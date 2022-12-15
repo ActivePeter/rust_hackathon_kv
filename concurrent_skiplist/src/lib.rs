@@ -199,7 +199,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
                 //     let _hold2=(*x).insert_mu[i as usize].lock();
                     (*x).nobarrier_set_next(
                         i,
-                        (*prev[i as usize]).nobarrier_next(i));
+                        (*prev[i as usize]).nobarrier_next(i,true));
                 // }
                 //prev下一个设置为x
                 (*prev[i as usize]).set_next(i,x,true);
