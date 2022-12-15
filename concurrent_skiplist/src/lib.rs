@@ -224,7 +224,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
 // }
 /// Operations of Index
 /// trait with generic type
-pub trait IndexOperate<K: Ord, V> {
+pub(crate) trait IndexOperate<K: Ord, V> {
     /// Get a range of keys in [key, range_end]
     fn get(&self, key: &K, range_end: &K) -> Vec<&V>;
     /// delete a range of keys in [key, range_end]

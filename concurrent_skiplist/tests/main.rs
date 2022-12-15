@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::thread;
 use concurrent_skiplist::ConcurrentSkiplist;
+use rand::Rng;
+use std::collections::BTreeMap;
 
 //todo
 // 单线程批量插入，验证结果
@@ -11,10 +13,19 @@ use concurrent_skiplist::ConcurrentSkiplist;
 
 #[test]
 fn insert() {
-    let map = ConcurrentSkiplist::<i32, i32>::new();
+    let mut rng = rand::thread_rng();
+    let mut std_map = BTreeMap::<i32,i32>::new();
+    let our_map = ConcurrentSkiplist::<i32, i32>::new();
 
-    for number in 1..1000 {
-        map.insert(number, number);
+    for key in 1..10000 {
+        let value = rng.gen_range(-10000..10000);
+        std_map.insert(key, value);
+        our_map.insert(key, value);
+    }
+    
+    for key in 1..10000 {
+        // FIXME 怎么才能 get value
+        assert_eq!(std_map.get(&key), our_map.get(key));
     }
 }
 
