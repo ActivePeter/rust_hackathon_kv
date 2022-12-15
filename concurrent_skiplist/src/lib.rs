@@ -50,7 +50,27 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             }
         }
     }
-
+    unsafe fn find_less_than(&self, k:&K) -> *mut Node<K, V> {
+        let mut x = self.head;
+        let mut level = MAX_HEIGHT - 1;
+        loop {
+            // assert(x == head_ || compare_(x->key, key) < 0);
+            let next = (*x).next(level);
+            if next.is_null() ||
+                next.k.cmp(k).is_ge()
+                // compare_(next->key, key) >= 0
+            {
+                if level == 0 {
+                    return x;
+                } else {
+                    // Switch to next list
+                    level -=1;
+                }
+            } else {
+                x = next;
+            }
+        }
+    }
 }
 //     SkipList<Key, Comparator>::FindGreaterOrEqual(const Key& key,
 //     Node** prev) const {
