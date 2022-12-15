@@ -18,7 +18,7 @@ fn insert() {
     let our_map = ConcurrentSkiplist::<i32, i32>::new();
 
     for key in 1..10000 {
-        let value = rng.gen_range(-10000..10000);
+        let value = rng.gen_range(-10000..=10000);
         std_map.insert(key, value);
         our_map.insert(key, value);
     }
