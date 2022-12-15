@@ -1,19 +1,30 @@
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 pub struct Node<K,V>{
-    pub k:K,
-    pub v:V,
+    k:Option<K>,
+    v:Option<V>,
     next:Vec<AtomicPtr<Node<K,V>>>
 }
 impl <K,V> Node<K,V>{
-    pub fn new(k:K, v:V, height:usize) -> Node<K, V> {
+    pub fn new_none(height:int) -> Node<K, V> {
         let mut vec=Vec::new();
         for _ in 0..height+1 {
             vec.push(AtomicPtr::new(std::ptr::null_mut()));
         }
         Node{
-            k,
-            v,
+            k: None,
+            v: None,
+            next: vec,
+        }
+    }
+    pub fn new(k:K, v:V, height:int) -> Node<K, V> {
+        let mut vec=Vec::new();
+        for _ in 0..height+1 {
+            vec.push(AtomicPtr::new(std::ptr::null_mut()));
+        }
+        Node{
+            k:Some(k),
+            v:Some(v),
             next: vec,
         }
     }
