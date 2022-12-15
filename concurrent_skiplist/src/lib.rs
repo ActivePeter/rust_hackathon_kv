@@ -6,7 +6,9 @@ const MAX_HEIGHT:i32 =12;
 const K_BRANCHING:usize=4;
 pub struct ConcurrentSkiplist<K:Ord,V>{
     k:K,
-    v:V
+    v:V,
+    // max_height,
+    head:*mut Node<K, V>
 }
 
 impl<K:Ord,V> ConcurrentSkiplist<K,V> {
@@ -23,15 +25,32 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         return height;
 
     }
-    fn key_is_after_node(&self,k:&K,node:*mut Node<K, V>)->bool{
+    unsafe fn key_is_after_node(&self, k:&K, node:*mut Node<K, V>) ->bool{
         return (!node.is_null()) && (
-            node.k.cmp(k).is_lt()
+            (*node).k.cmp(k).is_lt()
             // compare_(n->key, key) < 0
         );
     }
-    fn find_greater_or_equal(&self){
-
+    unsafe fn find_greater_or_equal(&self, k:&K) -> *mut Node<K, V> {
+        let mut x=self.head;
+        let mut level=MAX_HEIGHT-1;
+        loop {
+            let next=(*x).next(level);
+            if self.key_is_after_node(k,next){
+                x=next;
+            }else{
+                // TODO prev
+                // if (prev != nullptr) prev[level] = x;
+                if level == 0 {
+                    return next;
+                } else {
+                    // Switch to next list
+                    level-=1;
+                }
+            }
+        }
     }
+
 }
 //     SkipList<Key, Comparator>::FindGreaterOrEqual(const Key& key,
 //     Node** prev) const {
