@@ -1,16 +1,29 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::collections::BTreeMap;
 
 #[inline]
-fn fibonacci(n: u64) -> u64 {
-    match n {
-        0 => 1,
-        1 => 1,
-        n => fibonacci(n - 1) + fibonacci(n - 2),
+fn init(map: &mut BTreeMap<i32, i32>) {
+    for number in 1..100000 {
+        map.insert(number, number);
+    }
+}
+
+#[inline]
+fn get(map: &mut BTreeMap<i32, i32>) {
+    for number in 1..100000 {
+        map.get(&number);
+    }
+
+    for number in (1..100000).rev() {
+        map.get(&number);
     }
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("fib 20", |b| b.iter(|| fibonacci(black_box(20))));
+    let mut map = BTreeMap::<i32, i32>::new();
+    init(&mut map);
+
+    c.bench_function("get", |b| b.iter(|| get(&mut map)));
 }
 
 criterion_group!(benches, criterion_benchmark);
