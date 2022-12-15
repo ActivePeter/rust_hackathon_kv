@@ -1,5 +1,12 @@
 use concurrent_skiplist::ConcurrentSkiplist;
 
+//todo
+// 单线程批量插入，验证结果
+// 单线程批量删除，验证返回值以及是否删除成功
+// 多个线程同时插入（每个线程的key不冲突），验证结果
+// 多个线程同时删除（每个线程key不冲突），验证结果
+// 待补充
+
 #[test]
 fn insert() {
     let map = ConcurrentSkiplist::<i32, i32>::new();
