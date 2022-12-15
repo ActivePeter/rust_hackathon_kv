@@ -217,8 +217,26 @@ pub(crate) trait IndexOperate<K: Ord, V> {
 
 impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
     fn get(&self, key: &K, range_end: &K) -> Vec<&V>{
+        let mut gr_or_eq =self.find_greater_or_equal(key, None);
 
-        Vec::<&V>::new()
+        let mut ret =Vec::<&V>::new();
+        ret.reserve(1000);
+        loop {
+            unsafe {
+                if gr_or_eq.is_null()||
+                    (*gr_or_eq).unwrap_key_ref().cmp(range_end).is_ge(){
+                    break;
+                }
+                if let Some(v)=(*gr_or_eq).v.as_ref(){
+                    ret.push(v);
+                }
+                //切换到下一个
+                gr_or_eq=(*gr_or_eq).next(0);
+                //为null 或 >=end
+
+            }
+        }
+        ret
     }
     /// delete a range of keys in [key, range_end]
     fn delete(&self, key: &K, range_end: &K) -> Vec<V>{
@@ -228,12 +246,20 @@ impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
         ret.reserve(1000);
         loop {
             unsafe {
+                //为null 或 >=end
+                if gr_or_eq.is_null()||
+                    (*gr_or_eq).unwrap_key_ref().cmp(range_end).is_ge(){
+                    break;
+                }
+
                 if (*gr_or_eq).v.is_some(){
                     let mut takeout:Option<V>=None;
                     std::mem::swap(&mut takeout, &mut (*gr_or_eq).v);
                     ret.push(takeout.unwrap());
                 }
+                //切换到下一个
                 gr_or_eq=(*gr_or_eq).next(0);
+
             }
         }
         ret
