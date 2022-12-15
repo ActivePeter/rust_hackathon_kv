@@ -1,8 +1,10 @@
 use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::RwLock;
+// use atomic_option::AtomicOption;
 
 pub struct Node<K,V>{
     pub k:Option<K>,
-    pub v:Option<V>,
+    pub v: Option<V>,
     next:Vec<AtomicPtr<Node<K,V>>>
 }
 impl <K,V> Node<K,V>{
@@ -16,7 +18,7 @@ impl <K,V> Node<K,V>{
             Box::new(
                 Node{
                     k: None,
-                    v: None,
+                    v: (None),
                     next: vec,
                 }
             )
@@ -31,7 +33,7 @@ impl <K,V> Node<K,V>{
             Box::new(
                 Node{
                     k:Some(k),
-                    v:Some(v),
+                    v: /*RwLock::new*/(Some(v)),
                     next: vec,
                 }
             )
