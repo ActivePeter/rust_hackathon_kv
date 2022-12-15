@@ -283,7 +283,7 @@ impl<K:Ord,V> IndexOperate<K, V> for ConcurrentSkiplist<K,V>{
         ret
     }
     /// insert of update a key
-    pub fn insert_or_update(&self, key: K, value: V) -> Option<V>{
+    fn insert_or_update(&self, key: K, value: V) -> Option<V>{
         self.insert(key,value)
     }
 
