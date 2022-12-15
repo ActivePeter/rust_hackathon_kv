@@ -133,9 +133,13 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         // Our data structure does not allow duplicate insertion
         // assert!(!x.is_null() && (key.cmp(x.k.unwrap()).is_ne());
         unsafe {
+            //已经存在对应key，把原本的值换出。
             if !x.is_null() && (key.cmp((*x).unwrap_key_ref()).is_eq()) {
-
-                unreachable!("not support same key");
+                let mut v =Some(value);
+                // unreachable!("not support same key");
+                std::mem::swap(&mut (*x).v,&mut v);
+                return v;
+                // (*x).v
             }
         }
         // 使用随机数获取该节点的插入高度
