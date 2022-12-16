@@ -24,7 +24,7 @@ pub struct ConcurrentSkiplist<K:Ord,V>{
     head:*mut Node<K, V>,
     insert_big_mu:Mutex<()>,
     mode:ConcurrentSkiplistMode,
-    herd:Herd,
+    // herd:Herd,
     // free_list:Mutex<LinkedList<V>>,
 }
 
@@ -56,26 +56,31 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         // let mut vec=Vec::new();
         // let mut mu_v =Vec::new();
         // let vec:[AtomicPtr<Node<K,V>>;13] = ;
-        let ret=self.herd.get().alloc(Node{
-            k: None,
-            v: (None),
-            next: Default::default(),
-            // insert_mu: mu_v,
-        });
+        // let ret=Node::alloc(Node{
+        //     k: None,
+        //     v: (None),
+        //     next: Default::default(),
+        //     // insert_mu: mu_v,
+        // });
         // for i in 0..height+1 {
         //
         //     ret.next[i]=(AtomicPtr::new(std::ptr::null_mut()));
         //     // mu_v.push(Mutex::new(()));
         // };
-        ret
+        // ret
         // mu_v.resize(height as usize, Default::default());
         // std::boxed::into_raw();
-        // Box::into_raw(
-        //     Box::new(
+        Box::into_raw(
+            Box::new(
+                Node{
+                        k: None,
+                        v: (None),
+                        next: Default::default(),
+                        // insert_mu: mu_v,
+                    }
 
-
-            // )
-        // )
+            )
+        )
     }
     pub fn new_node(&self,k:K, v:V, height:i32) -> *mut Node<K, V> {
         // let mut vec=Vec::new();
@@ -86,12 +91,25 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         // }
         // mu_v.resize(height as usize, Default::default());
 
-        self.herd.get().alloc(Node{
-            k:Some(k),
-            v: /*RwLock::new*/(Some(v)),
-            next: Default::default(),
-            // insert_mu: mu_v,
-        })
+        // self.herd.get().alloc(Node{
+        //     k:Some(k),
+        //     v: /*RwLock::new*/(Some(v)),
+        //     next: Default::default(),
+        //     // insert_mu: mu_v,
+        // })
+        Box::into_raw(
+            Box::new(
+                Node{
+                    // k: None,
+                    // v: (None),
+                        k:Some(k),
+                        v: /*RwLock::new*/(Some(v)),
+                    next: Default::default(),
+                    // insert_mu: mu_v,
+                }
+
+            )
+        )
     }
     pub fn new(mode:ConcurrentSkiplistMode) -> ConcurrentSkiplist<K, V> {
         // let head=new_none(MAX_HEIGHT);
@@ -102,7 +120,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             // free_list: LinkedList::new(),
             insert_big_mu: Mutex::new(()),
             mode,
-            herd: Default::default(),
+            // herd: Default::default(),
         };
         a.head=a.new_node_none(MAX_HEIGHT);
         a

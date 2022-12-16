@@ -117,10 +117,11 @@ fn single_thread() {
 #[test]
 fn multithread() {
     let map = Arc::new(
-        SkipListjjj
+        // SkipListjjj
+        ConcurrentSkiplist
         // crossbeam_skiplist::SkipMap
             ::<i32, i32>::new(
-        // ConcurrentSkiplistMode::NoLock
+        ConcurrentSkiplistMode::NoLock
         // ConcurrentSkiplistMode::OneBigLock
     ));
     let mut v =vec![];
@@ -129,7 +130,7 @@ fn multithread() {
         v.push(thread::spawn(move || {
             let time=10000;
             for j in i * time..(i + 1) * time {
-                map_.insert(j, j);
+                map_.insert_or_update(j, j);
             }
             // for j in i * time..(i + 1) * time {
             //     let end = j + 1;

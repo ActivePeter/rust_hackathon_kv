@@ -4,7 +4,8 @@ use rand::Rng;
 use std::{collections::BTreeMap, sync::Arc, thread};
 use crossbeam_skiplist::SkipMap;
 use parking_lot::Mutex;
-use concurrent_skiplist::lib2::SkipListhhh;
+use concurrent_skiplist::lib3::SkipListjjj;
+// use concurrent_skiplist::lib2::SkipListhhh;
 // use criterion::async_executor::FuturesExecutor;
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -178,7 +179,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         // i=i+1;
     }));
     c.bench_function("8 thread my2 wr", |b| b.iter(|| {
-        let map = Arc::new(SkipListhhh::<i32, i32>::new(
+        let map = Arc::new(SkipListjjj::<i32, i32>::new(
             // ConcurrentSkiplistMode::NoLock
             // ConcurrentSkiplistMode::OneBigLock
         ));
@@ -189,7 +190,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
                 let time=12500;
                 for j in i * time..(i + 1) * time {
-                    map_.insert_or_update(j, j);
+                    map_.insert(j, j);
                 }
                 // for k in 0..100{
                 //     for j in i * time..(i + 1) * time {

@@ -10,6 +10,7 @@ use std::mem;
 use std::ptr::{self, NonNull};
 use std::sync::atomic::{AtomicPtr, AtomicU8};
 use std::sync::atomic::Ordering::{Relaxed, Acquire};
+use bumpalo_herd::Herd;
 
 // use crate::AbstractOrd;
 
@@ -17,7 +18,6 @@ use std::sync::atomic::Ordering::{Relaxed, Acquire};
 
 const MAX_HEIGHT: usize = 31;
 type Ptr<T>     = Option<NonNull<T>>;
-type Lanes<K,V>   = [AtomicPtr<Node<K,V>>; 1];// NB: Lanes is actually a variable sized array of lanes,
 // containing at least one lane, but possibly as many as
 // MAX_HEIGHT.
 
@@ -31,27 +31,41 @@ unsafe impl<K,V> Sync for SkipListjjj<K,V> { }
 
 #[repr(C)] // NB: repr(C) necessary to avoid reordering lanes field, which must be the tail
 struct Node<K,V> {
-    inner: InnerNode<K,V>,
-    lanes: Lanes<K,V>,
+    kv: Option<(K,V)>,
+    height: u8,
+    lanes: [AtomicPtr<Node<K,V>>; MAX_HEIGHT+1],
 }
 
-// NB: To allow optimizing repr of these fields
-struct InnerNode<K,V> {
-    elem: (K,V),
-    height: u8,
-}
 
 impl<K:Ord,V> SkipListjjj<K,V> {
     pub fn new() -> SkipListjjj<K,V> {
         SkipListjjj {
             current_height: AtomicU8::new(8),
             lanes: Default::default(),
+            // herd: Default::default(),
         }
     }
-
-    pub fn insert(&self, k: K,v:V) -> Option<V> {
-        insert::insert(&self.lanes[..], (k,v), &self.current_height)
-    }
+    // fn alloc_node(&self,kv: (K,V), max_height: &AtomicU8) -> NonNull<Node<K,V>> {
+    //     let height = random_height();
+    //     max_height.fetch_max(height as u8, Relaxed);
+    //     unsafe {
+    //         NonNull::new_unchecked(self.herd.get().alloc(
+    //                                Node{
+    //                                    kv: Some(kv),
+    //                                    height: height as u8,
+    //                                    lanes: Default::default(),
+    //                                })
+    //
+    //         )
+    //     }
+    //     // unsafe {
+    //     //     let layout = Node::<K,V>::layout(height);
+    //     //     let ptr = alloc::alloc_zeroed(layout) as *mut Node<K,V>;
+    //     //     (*ptr).height = height as u8;
+    //     //     ptr::write(&mut (*ptr).kv as *mut (K,V), kv);
+    //     //     NonNull::new_unchecked(ptr)
+    //     // }
+    // }
 }
 
 impl<K,V> SkipListjjj<K,V> {
@@ -59,56 +73,38 @@ impl<K,V> SkipListjjj<K,V> {
         let init = MAX_HEIGHT - self.current_height.load(Relaxed) as usize;
         &self.lanes[init..]
     }
-
-    // pub fn get<'a, U: AbstractOrd<K,V> + ?Sized>(&'a self, elem: &U) -> Option<&T> {
-    //     get::get(self.lanes(), elem)
-    // }
-
-    // pub fn elems(&self) -> Elems<'_, T> {
-    //     Elems { nodes: self.nodes() }
-    // }
-    //
-    // pub fn elems_mut(&mut self) -> ElemsMut<'_, T> {
-    //     ElemsMut { nodes: self.nodes_mut() }
-    // }
-    //
-    // pub fn into_elems(self) -> IntoElems<K,V> {
-    //     let ptr = self.first();
-    //     mem::forget(self);
-    //     IntoElems { ptr }
-    // }
-    //
-    // fn nodes(&self) -> Nodes<'_, T> {
-    //     Nodes::new(self.first())
-    // }
-    //
-    // fn nodes_mut(&mut self) -> NodesMut<'_, T> {
-    //     NodesMut::new(self.first())
-    // }
-    //
-    // fn first(&self) -> Ptr<Node<K,V>> {
-    //     NonNull::new(self.lanes[MAX_HEIGHT - 1].load(Acquire))
-    // }
 }
 
 impl<K,V> Node<K,V> {
-    fn alloc(elem: (K,V), max_height: &AtomicU8) -> NonNull<Node<K,V>> {
+    fn alloc(kv: (K,V), max_height: &AtomicU8) -> NonNull<Node<K,V>> {
         let height = random_height();
         max_height.fetch_max(height as u8, Relaxed);
         unsafe {
-            let layout = Node::<K,V>::layout(height);
-            let ptr = alloc::alloc_zeroed(layout) as *mut Node<K,V>;
-            (*ptr).inner.height = height as u8;
-            ptr::write(&mut (*ptr).inner.elem as *mut (K,V), elem);
-            NonNull::new_unchecked(ptr)
+            NonNull::new_unchecked(Box::into_raw(
+                Box::new(
+                    Node{
+                        kv: Some(kv),
+                        height: height as u8,
+                        lanes: Default::default(),
+                    }
+                )
+            )
+            )
         }
+        // unsafe {
+        //     let layout = Node::<K,V>::layout(height);
+        //     let ptr = alloc::alloc_zeroed(layout) as *mut Node<K,V>;
+        //     (*ptr).height = height as u8;
+        //     ptr::write(&mut (*ptr).kv as *mut (K,V), kv);
+        //     NonNull::new_unchecked(ptr)
+        // }
     }
 
     unsafe fn dealloc(&mut self) -> (K,V) {
-        let layout = Node::<K,V>::layout(self.height());
-        let elem = ptr::read(&mut self.inner.elem);
-        alloc::dealloc(self as *mut Node<K,V> as *mut u8, layout);
-        elem
+        let mut r =None;
+        std::mem::swap(&mut r,&mut self.kv);
+        let n=Box::from_raw(self);
+        r.unwrap()
     }
 
     fn next(&self) -> Ptr<Node<K,V>> {
@@ -116,19 +112,20 @@ impl<K,V> Node<K,V> {
     }
 
     fn lanes(&self) -> &[AtomicPtr<Node<K,V>>] {
-        #[repr(C)]
-        struct LanesPtr<K,V> {
-            lanes: *const Lanes<K,V>,
-            height: usize,
-        }
-
-        let lanes = &self.lanes as *const Lanes<K,V>;
-        let height = self.height();
-        unsafe { mem::transmute(LanesPtr { lanes, height }) }
+        // #[repr(C)]
+        // struct LanesPtr<K,V> {
+        //     lanes: *const Lanes<K,V>,
+        //     height: usize,
+        // }
+        //
+        // let lanes = &self.lanes as *const Lanes<K,V>;
+        // let height = self.height();
+        // unsafe { mem::transmute(LanesPtr { lanes, height }) }
+        &self.lanes[0..self.height()]
     }
 
     fn height(&self) -> usize {
-        self.inner.height as usize
+        self.height as usize
     }
 
     fn layout(height: usize) -> alloc::Layout {
@@ -160,16 +157,16 @@ impl<K,V> Drop for SkipListjjj<K,V> {
 
 // impl<T: AbstractOrd<K,V>> Extend<K,V> for SkipListjjj<K,V> {
 //     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-//         iter.into_iter().for_each(|elem| {
-//             self.insert(elem);
+//         iter.into_iter().for_each(|kv| {
+//             self.insert(kv);
 //         });
 //     }
 // }
 //
 // impl<'a, T: AbstractOrd<K,V> + Copy> Extend<&'a T> for SkipListjjj<K,V> {
 //     fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
-//         iter.into_iter().for_each(|&elem| {
-//             self.insert(elem);
+//         iter.into_iter().for_each(|&kv| {
+//             self.insert(kv);
 //         });
 //     }
 // }
