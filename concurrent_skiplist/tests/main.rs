@@ -119,7 +119,7 @@ fn multithread() {
         // ConcurrentSkiplistMode::OneBigLock
     ));
     let mut v =vec![];
-    for i in 1..10 {
+    for i in 1..2 {
         let map_ = map.clone();
         v.push(thread::spawn(move || {
             let time=10000;

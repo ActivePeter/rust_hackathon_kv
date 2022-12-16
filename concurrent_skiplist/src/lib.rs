@@ -232,14 +232,15 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         }
         // 创建要插入的节点对象
         let newnode=self.new_node(key,value,height);
-
+        // println!("newnode {}",newnode as u64);
         //重试，必须保证最后一行被插入
         unsafe {
             let mut looptime =0;
-            loop {
+            'retry: loop {
                 let x = self.find_greater_or_equal(
                     (*newnode).unwrap_key_ref(),
                     max_height,Some(&mut prev));
+                // println!("loop time {},x {}",looptime,x as u64);
                 // Our data structure does not allow duplicate insertion
                 // assert!(!x.is_null() && (key.cmp(x.k.unwrap()).is_ne());
                 {
@@ -247,7 +248,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
                     if !x.is_null() && ((*newnode).unwrap_key_ref().cmp((*x).unwrap_key_ref()).is_eq()) {
                         let mut v =None;
 
-                        unreachable!();
+                        // unreachable!();
                         std::mem::swap(&mut (*newnode).v,&mut v);
                         // unreachable!("not support same key");
                         std::mem::swap(&mut (*x).v,&mut v);
@@ -287,17 +288,19 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
                         if !next.is_null()
                             &&(*newnode).unwrap_key_ref().cmp((*next).unwrap_key_ref()).is_gt(){
                             //当前大于下一个，不对,重来
-                            break;
+                            // println!("break");
+                            break 'retry;
                         }
                         //prev下一个设置为x
                         if
                         (*prev[i as usize]).cas_setnext(i,next,newnode){
                             //成功！！
                         }else{
-                            break;
+                            // println!("break");
+                            break 'retry;
                         }
-
                     }
+                    break 'retry;
                 }
             }
         }
