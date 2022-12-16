@@ -7,51 +7,11 @@ use crate::ConcurrentSkiplistMode::NoLock;
 pub struct Node<K,V>{
     pub k:Option<K>,
     pub v: Option<V>,
-    next:Vec<AtomicPtr<Node<K,V>>>,
-    pub insert_mu:Vec<Mutex<()>>
+    pub(crate) next:Vec<AtomicPtr<Node<K,V>>>,
+    // pub insert_mu:Vec<Mutex<()>>
 }
 impl <K,V> Node<K,V>{
-    pub fn new_none(height:i32) -> *mut Node<K, V> {
-        let mut vec=Vec::new();
-        let mut mu_v =Vec::new();
-        for _ in 0..height+1 {
-            vec.push(AtomicPtr::new(std::ptr::null_mut()));
-            mu_v.push(Mutex::new(()));
-        }
 
-        // mu_v.resize(height as usize, Default::default());
-        // std::boxed::into_raw();
-        Box::into_raw(
-            Box::new(
-                Node{
-                    k: None,
-                    v: (None),
-                    next: vec,
-                    insert_mu: mu_v,
-                }
-            )
-        )
-    }
-    pub fn new(k:K, v:V, height:i32) -> *mut Node<K, V> {
-        let mut vec=Vec::new();
-        let mut mu_v =Vec::new();
-        for _ in 0..height+1 {
-            vec.push(AtomicPtr::new(std::ptr::null_mut()));
-            mu_v.push(Mutex::new(()));
-        }
-        // mu_v.resize(height as usize, Default::default());
-        Box::into_raw(
-            Box::new(
-                Node{
-                    k:Some(k),
-                    v: /*RwLock::new*/(Some(v)),
-                    next: vec,
-                    insert_mu: mu_v,
-                }
-            )
-        )
-
-    }
     pub fn unwrap_key_ref(&self)->&K{
         self.k.as_ref().unwrap()
     }
@@ -64,6 +24,11 @@ impl <K,V> Node<K,V>{
 
             self.next[n as usize].load(Ordering::Acquire)
         }
+    }
+    pub fn cas_setnext(&self, n:i32, exp:*mut Node<K, V>, node:*mut Node<K, V>) -> bool {
+        self.next[n as usize].compare_exchange(
+            exp,node,Ordering::Acquire,Ordering::Acquire
+        ).is_ok()
     }
     pub fn set_next(&self,mode:&ConcurrentSkiplistMode,n:i32,node:*mut Node<K, V>,locked:bool){
         if *mode== NoLock &&!locked{

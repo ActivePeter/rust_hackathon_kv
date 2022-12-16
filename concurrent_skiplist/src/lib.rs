@@ -4,7 +4,9 @@ pub mod node;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::LinkedList;
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::ptr::null_mut;
+use std::sync::atomic::{AtomicI32, AtomicPtr, Ordering};
+use bumpalo_herd::Herd;
 use parking_lot::Mutex;
 // use std::sync::Mutex;
 use rand::Rng;
@@ -19,7 +21,8 @@ pub struct ConcurrentSkiplist<K:Ord,V>{
     max_height:AtomicI32,
     head:*mut Node<K, V>,
     insert_big_mu:Mutex<()>,
-    mode:ConcurrentSkiplistMode
+    mode:ConcurrentSkiplistMode,
+    herd:Herd,
     // free_list:Mutex<LinkedList<V>>,
 }
 
@@ -47,17 +50,57 @@ pub enum ConcurrentSkiplistMode{
 }
 // unsafe impl<K:Ord,V> Send for ConcurrentSkiplist<K,V> {}
 impl<K:Ord,V> ConcurrentSkiplist<K,V> {
+    pub fn new_node_none(&self,height:i32) -> *mut Node<K, V> {
+        let mut vec=Vec::new();
+        // let mut mu_v =Vec::new();
+        for _ in 0..height+1 {
+            vec.push(AtomicPtr::new(std::ptr::null_mut()));
+            // mu_v.push(Mutex::new(()));
+        }
 
+        // mu_v.resize(height as usize, Default::default());
+        // std::boxed::into_raw();
+        // Box::into_raw(
+        //     Box::new(
+        self.herd.get().alloc(Node{
+            k: None,
+            v: (None),
+            next: vec,
+            // insert_mu: mu_v,
+        })
+
+            // )
+        // )
+    }
+    pub fn new_node(&self,k:K, v:V, height:i32) -> *mut Node<K, V> {
+        let mut vec=Vec::new();
+        // let mut mu_v =Vec::new();
+        for _ in 0..height+1 {
+            vec.push(AtomicPtr::new(std::ptr::null_mut()));
+            // mu_v.push(Mutex::new(()));
+        }
+        // mu_v.resize(height as usize, Default::default());
+
+        self.herd.get().alloc(Node{
+            k:Some(k),
+            v: /*RwLock::new*/(Some(v)),
+            next: vec,
+            // insert_mu: mu_v,
+        })
+    }
     pub fn new(mode:ConcurrentSkiplistMode) -> ConcurrentSkiplist<K, V> {
-        let head=Node::new_none(MAX_HEIGHT);
+        // let head=new_none(MAX_HEIGHT);
 
-        ConcurrentSkiplist{
+        let mut a=ConcurrentSkiplist{
             max_height: AtomicI32::new(1),
-            head,
+            head:null_mut(),
             // free_list: LinkedList::new(),
             insert_big_mu: Mutex::new(()),
             mode,
-        }
+            herd: Default::default(),
+        };
+        a.head=a.new_node_none(MAX_HEIGHT);
+        a
     }
     fn get_max_height(&self) -> i32 {
         return self.max_height.load(Ordering::Relaxed);
@@ -166,26 +209,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         // 将对应节点的前驱全部存入prev
 
         let max_height=self.get_max_height();
-        let mut x = self.find_greater_or_equal(
-            &key, max_height,Some(&mut prev));
-
-        // Our data structure does not allow duplicate insertion
-        // assert!(!x.is_null() && (key.cmp(x.k.unwrap()).is_ne());
-        unsafe {
-            //已经存在对应key，把原本的值换出。
-            if !x.is_null() && (key.cmp((*x).unwrap_key_ref()).is_eq()) {
-                let mut v =Some(value);
-                // unreachable!("not support same key");
-                std::mem::swap(&mut (*x).v,&mut v);
-                return v;
-                // (*x).v
-            }
-        }
-
-        //笨办法，加大锁
-
-
-        // 使用随机数获取该节点的插入高度
+// 使用随机数获取该节点的插入高度
         let height = self.random_height();
         // 大于当前skiplist 最高高度的话，将多出的来的高度的prev 设置为哨兵节点
         if height > max_height {
@@ -202,37 +226,80 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             // immediately drop to the next level since nullptr sorts after all
             // keys.  In the latter case the reader will use the new node.
 
-                //更新最大高度
+            //更新最大高度
             self.max_height.store(height,Ordering::Relaxed);
             // max_height_.store(height, std::memory_order_relaxed);
         }
         // 创建要插入的节点对象
-        x=Node::new(key,value,height);
-        // x = NewNode(key, height);
-        // for (int i = 0; i < height; i++) {
-        for i in 0..height {
-            // NoBarrier_SetNext() suffices since we will add a barrier when
-            // we publish a pointer to "x" in prev[i].
-            // let v=prev[i].;
-            unsafe {
-                // 首先将x（第一个大于等于插入key）的next 指向prev 的下一个节点
-                // 这个不需要加锁，因为还没有真正进入
-                (*x).nobarrier_set_next(self.mode.borrow(),i, (*prev[i as usize]).nobarrier_next(
-                    self.mode.borrow(), i, true));
-                // let _hold1=if self.mode==ConcurrentSkiplistMode::EachNodeEachLevelLock{
-                //     Some((*prev[i as usize]).insert_mu[i as usize].lock())
-                // } else{
-                //     None
-                // };
-                // {
-                //     let _hold2=(*x).insert_mu[i as usize].lock();
-                // }
-                //prev下一个设置为x
-                (*prev[i as usize]).set_next(self.mode.borrow(),i,x,true);
-            }
+        let newnode=self.new_node(key,value,height);
 
-            // x->NoBarrier_SetNext(i, prev[i]->NoBarrier_Next(i));
-            // prev[i]->SetNext(i, x);
+        //重试，必须保证最后一行被插入
+        unsafe {
+            let mut looptime =0;
+            loop {
+                let x = self.find_greater_or_equal(
+                    (*newnode).unwrap_key_ref(),
+                    max_height,Some(&mut prev));
+                // Our data structure does not allow duplicate insertion
+                // assert!(!x.is_null() && (key.cmp(x.k.unwrap()).is_ne());
+                {
+                    //已经存在对应key，把原本的值换出。
+                    if !x.is_null() && ((*newnode).unwrap_key_ref().cmp((*x).unwrap_key_ref()).is_eq()) {
+                        let mut v =None;
+
+                        unreachable!();
+                        std::mem::swap(&mut (*newnode).v,&mut v);
+                        // unreachable!("not support same key");
+                        std::mem::swap(&mut (*x).v,&mut v);
+                        // println!("{}",(*newnode).unwrap_key_ref());
+                        return v;
+                        // (*x).v
+                    }
+                }
+
+                {
+                // x = NewNode(key, height);
+                // for (int i = 0; i < height; i++) {
+                    let i=0;
+                    let next=(*prev[i as usize]).nobarrier_next(
+                        &self.mode,i,false
+                    );
+                    (*newnode).nobarrier_set_next(self.mode.borrow(),i, next);
+                    if !next.is_null()
+                        &&(*newnode).unwrap_key_ref().cmp((*next).unwrap_key_ref()).is_gt(){
+                        //当前大于下一个，不对,重来
+                        looptime+=1;
+                        continue;
+                    }
+                    //prev下一个设置为x
+                    if (*prev[i as usize]).cas_setnext(i,next,newnode){
+                        //成功！！
+                    }else{
+                        looptime+=1;
+                        continue;
+                    }
+
+                    for i in 1..height {
+                        let next=(*prev[i as usize]).nobarrier_next(
+                            &self.mode,i,false
+                        );
+                        (*newnode).nobarrier_set_next(self.mode.borrow(),i, next);
+                        if !next.is_null()
+                            &&(*newnode).unwrap_key_ref().cmp((*next).unwrap_key_ref()).is_gt(){
+                            //当前大于下一个，不对,重来
+                            break;
+                        }
+                        //prev下一个设置为x
+                        if
+                        (*prev[i as usize]).cas_setnext(i,next,newnode){
+                            //成功！！
+                        }else{
+                            break;
+                        }
+
+                    }
+                }
+            }
         }
         None
     }
