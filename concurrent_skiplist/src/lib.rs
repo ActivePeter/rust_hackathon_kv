@@ -106,15 +106,16 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         return self.max_height.load(Ordering::Relaxed);
     }
     fn random_height(&self)->i32{
-        let mut height:i32 = 1;
-        while height < MAX_HEIGHT && rand::thread_rng()
-            .gen_range(0..K_BRANCHING)==0 {
-            height+=1;
-        }
-        assert!(height > 0);
-        assert!(height <= MAX_HEIGHT);
-        return height;
-
+        // let mut height:i32 = 1;
+        // while height < MAX_HEIGHT && rand::thread_rng()
+        //     .gen_range(0..K_BRANCHING)==0 {
+        //     height+=1;
+        // }
+        // assert!(height > 0);
+        // assert!(height <= MAX_HEIGHT);
+        // return height;
+        const MASK: u32 = 1 << (MAX_HEIGHT - 1);
+        1 + (rand::random::<u32>() | MASK).trailing_zeros() as i32
     }
     unsafe fn key_is_after_node(&self, k:&K, node:*mut Node<K, V>) ->bool{
         return (!node.is_null()) && (
@@ -193,13 +194,11 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         }
     }
     fn insert(&self, key: K, value: V) -> Option<V> {
-        let _hold_big=if self.mode==ConcurrentSkiplistMode::OneBigLock{
-            Some(self.insert_big_mu.lock())
-        }else{
-            None
-        };
-        // TODO(opt): We can use a barrier-free variant of FindGreaterOrEqual()
-        // here since Insert() is externally synchronized.
+        // let _hold_big=if self.mode==ConcurrentSkiplistMode::OneBigLock{
+        //     Some(self.insert_big_mu.lock())
+        // }else{
+        //     None
+        // };
 
         //声明prev节点，代表插入位置的前一个节点
         let mut prev
