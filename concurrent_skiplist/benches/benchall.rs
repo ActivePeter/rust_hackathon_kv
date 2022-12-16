@@ -4,6 +4,7 @@ use rand::Rng;
 use std::{collections::BTreeMap, sync::Arc, thread};
 use crossbeam_skiplist::SkipMap;
 use parking_lot::Mutex;
+use concurrent_skiplist::lib2::SkipListhhh;
 // use criterion::async_executor::FuturesExecutor;
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -176,6 +177,38 @@ fn criterion_benchmark(c: &mut Criterion) {
         // // pakv.set("hhh".to_string(),"mmm".to_string());
         // i=i+1;
     }));
+    c.bench_function("8 thread my2 wr", |b| b.iter(|| {
+        let map = Arc::new(SkipListhhh::<i32, i32>::new(
+            // ConcurrentSkiplistMode::NoLock
+            // ConcurrentSkiplistMode::OneBigLock
+        ));
+        let mut vec =vec![];
+        for i in 1..9 {
+            let map_ = map.clone();
+            vec.push(thread::spawn(move || {
+
+                let time=12500;
+                for j in i * time..(i + 1) * time {
+                    map_.insert_or_update(j, j);
+                }
+                // for k in 0..100{
+                //     for j in i * time..(i + 1) * time {
+                //         let end = j + 1;
+                //         let v = map_.get(&j, &end);
+                //         assert_eq!(v.len(), 1);
+                //         assert_eq!(*v[0], j);
+                //     }
+                // }
+
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+        // pakv.set(format!("{}",i),"lll".to_string());
+        // // pakv.set("hhh".to_string(),"mmm".to_string());
+        // i=i+1;
+    }));
     c.bench_function("8 thread my wr", |b| b.iter(|| {
         let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
             ConcurrentSkiplistMode::NoLock
@@ -185,6 +218,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         for i in 1..9 {
             let map_ = map.clone();
             vec.push(thread::spawn(move || {
+
                 let time=12500;
                 for j in i * time..(i + 1) * time {
                     map_.insert_or_update(j, j);
@@ -236,6 +270,73 @@ fn criterion_benchmark(c: &mut Criterion) {
                 //         }
                 //     }
                 // }
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+        // pakv.set(format!("{}",i),"lll".to_string());
+        // // pakv.set("hhh".to_string(),"mmm".to_string());
+        // i=i+1;
+    }));
+    c.bench_function("8 thread my wr rand", |b| b.iter(|| {
+        let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
+            ConcurrentSkiplistMode::NoLock
+        ));
+        let mut vec =vec![];
+        for i in 1..9 {
+            let map_ = map.clone();
+            vec.push(thread::spawn(move || {
+                let mut rng = rand::thread_rng();
+                let time=12500;
+                for j in i * time..(i + 1) * time {
+                    let v=rng.gen_range(i * time..(i + 1) * time);
+                    map_.insert_or_update(v, v);
+                }
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+    }));
+    c.bench_function("8 thread cross wr rand", |b| b.iter(|| {
+        let map = Arc::new(SkipMap::<i32, i32>::new(
+            // ConcurrentSkiplistMode::NoLock
+            // ConcurrentSkiplistMode::OneBigLock
+        ));
+        let mut vec =vec![];
+        for i in 1..9 {
+            let map_ = map.clone();
+            vec.push(thread::spawn(move || {
+                let mut rng = rand::thread_rng();
+                let time=12500;
+                for j in i * time..(i + 1) * time {
+                    let v=rng.gen_range(i * time..(i + 1) * time);
+                    map_.insert(v, v);
+                }
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+    }));
+    c.bench_function("8 thread btree wr rand", |b| b.iter(|| {
+        let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new(
+            // ConcurrentSkiplistMode::NoLock
+            // ConcurrentSkiplistMode::OneBigLock
+        )));
+        let mut vec =vec![];
+        for i in 1..9 {
+            let mut map_ = map.clone();
+            vec.push(thread::spawn(move || {
+                let mut rng = rand::thread_rng();
+                // let mut map_ =map_.lock();
+                let time=12500;
+                for j in i * time..(i + 1) * time {
+                    let v=rng.gen_range(i * time..(i + 1) * time);
+                    // map_.lock().insert(v, v);
+                    map_.lock().insert(v, v);
+                }
             }));
         }
         for i in vec {

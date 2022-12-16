@@ -1,6 +1,8 @@
 
 
 pub mod node;
+// pub mod lib2;
+pub mod lib3;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::LinkedList;
@@ -51,40 +53,43 @@ pub enum ConcurrentSkiplistMode{
 // unsafe impl<K:Ord,V> Send for ConcurrentSkiplist<K,V> {}
 impl<K:Ord,V> ConcurrentSkiplist<K,V> {
     pub fn new_node_none(&self,height:i32) -> *mut Node<K, V> {
-        let mut vec=Vec::new();
+        // let mut vec=Vec::new();
         // let mut mu_v =Vec::new();
-        for _ in 0..height+1 {
-            vec.push(AtomicPtr::new(std::ptr::null_mut()));
-            // mu_v.push(Mutex::new(()));
-        }
-
+        // let vec:[AtomicPtr<Node<K,V>>;13] = ;
+        let ret=self.herd.get().alloc(Node{
+            k: None,
+            v: (None),
+            next: Default::default(),
+            // insert_mu: mu_v,
+        });
+        // for i in 0..height+1 {
+        //
+        //     ret.next[i]=(AtomicPtr::new(std::ptr::null_mut()));
+        //     // mu_v.push(Mutex::new(()));
+        // };
+        ret
         // mu_v.resize(height as usize, Default::default());
         // std::boxed::into_raw();
         // Box::into_raw(
         //     Box::new(
-        self.herd.get().alloc(Node{
-            k: None,
-            v: (None),
-            next: vec,
-            // insert_mu: mu_v,
-        })
+
 
             // )
         // )
     }
     pub fn new_node(&self,k:K, v:V, height:i32) -> *mut Node<K, V> {
-        let mut vec=Vec::new();
-        // let mut mu_v =Vec::new();
-        for _ in 0..height+1 {
-            vec.push(AtomicPtr::new(std::ptr::null_mut()));
-            // mu_v.push(Mutex::new(()));
-        }
+        // let mut vec=Vec::new();
+        // // let mut mu_v =Vec::new();
+        // for _ in 0..height+1 {
+        //     vec.push(AtomicPtr::new(std::ptr::null_mut()));
+        //     // mu_v.push(Mutex::new(()));
+        // }
         // mu_v.resize(height as usize, Default::default());
 
         self.herd.get().alloc(Node{
             k:Some(k),
             v: /*RwLock::new*/(Some(v)),
-            next: vec,
+            next: Default::default(),
             // insert_mu: mu_v,
         })
     }
@@ -118,7 +123,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         1 + (rand::random::<u32>() | MASK).trailing_zeros() as i32
     }
     unsafe fn key_is_after_node(&self, k:&K, node:*mut Node<K, V>) ->bool{
-        return (!node.is_null()) && (
+        return (node as u64!=0) && (
             (*node).unwrap_key_ref().cmp(k).is_lt()
             // compare_(n->key, key) < 0
         );
@@ -129,6 +134,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         mut prev: Option<&mut [*mut Node<K, V>]>) -> *mut Node<K, V> {
         let mut x=self.head;
         let mut level=max_height-1;
+
         loop {
             unsafe {
                 let next=(*x).next(&self.mode,level);

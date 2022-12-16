@@ -7,7 +7,7 @@ use crate::ConcurrentSkiplistMode::NoLock;
 pub struct Node<K,V>{
     pub k:Option<K>,
     pub v: Option<V>,
-    pub(crate) next:Vec<AtomicPtr<Node<K,V>>>,
+    pub(crate) next:[AtomicPtr<Node<K,V>>;13],
     // pub insert_mu:Vec<Mutex<()>>
 }
 impl <K,V> Node<K,V>{
