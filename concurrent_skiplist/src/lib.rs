@@ -3,8 +3,12 @@
 pub mod node;
 
 use std::borrow::{Borrow, BorrowMut};
-use std::collections::LinkedList;
+use std::collections::{HashMap, LinkedList};
+use std::ptr;
 use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::{MutexGuard, TryLockResult};
+use std::thread::sleep;
+use std::time::Duration;
 use parking_lot::Mutex;
 // use std::sync::Mutex;
 use rand::Rng;
@@ -79,7 +83,61 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
             // compare_(n->key, key) < 0
         );
     }
+    fn find_greater_or_equal2(
+        &self, head_locked:bool,k:&K, max_height:i32,
+        mut prev: Option<&mut [*mut Node<K, V>]>) -> (*mut Node<K, V>, Vec<MutexGuard<()>>) {
+        let mut x=self.head;
+        let mut last_x=ptr::null_mut();
 
+        let mut locked =HashMap::new();
+        if head_locked{
+            last_x=self.head;
+            locked.insert(self.head,self.head);
+        }
+        let mut level=max_height-1;
+        let mut v=vec![];
+        v.reserve(13);
+        loop {
+            unsafe {
+                let bak_x=x;
+                let next=loop {
+                    let next=(*x).next(&self.mode,level);
+                    if self.key_is_after_node(k,next){
+                        x=next;
+                    }else{
+                        break next;
+                    }
+                };
+                if x!=last_x{
+                    assert!(locked.get(&x).is_none());
+                    match (*x).insert_mu[0].try_lock(){
+                        Ok(l) => {
+                            v.push(l);
+                            last_x=x;
+                            locked.insert(x,x);
+                        }
+                        Err(_) => {
+                            x=bak_x;
+                            //sleep(Duration::from_millis(10));
+                            continue;
+                        }
+                    }
+                }
+                {
+                    if let Some( prev)=prev.as_mut(){
+                        prev[level as usize] = x;
+                    }
+                    if level == 0 {
+                        // check_prevs(prev,self.get_max_height());
+                        return (next,v);
+                    } else {
+                        // Switch to next list
+                        level-=1;
+                    }
+                }
+            }
+        }
+    }
     fn find_greater_or_equal(
         &self, k:&K,max_height:i32,
         mut prev: Option<&mut [*mut Node<K, V>]>) -> *mut Node<K, V> {
@@ -165,8 +223,18 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         // 使用FindGreaterOrEqual函数找到第一个大于等于插入key的位置
         // 将对应节点的前驱全部存入prev
 
+        // 使用随机数获取该节点的插入高度
+        let height = self.random_height();
         let max_height=self.get_max_height();
-        let mut x = self.find_greater_or_equal(
+        let ll=unsafe {
+            if height > max_height {
+                Some((*self.head).insert_mu[0].lock())
+            }else {
+                None
+            }
+        };
+        let (mut x,lo) = self.find_greater_or_equal2(
+            ll.is_some(),
             &key, max_height,Some(&mut prev));
 
         // Our data structure does not allow duplicate insertion
@@ -185,8 +253,7 @@ impl<K:Ord,V> ConcurrentSkiplist<K,V> {
         //笨办法，加大锁
 
 
-        // 使用随机数获取该节点的插入高度
-        let height = self.random_height();
+
         // 大于当前skiplist 最高高度的话，将多出的来的高度的prev 设置为哨兵节点
         if height > max_height {
             for i in max_height..height{

@@ -178,8 +178,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     }));
     c.bench_function("8 thread my", |b| b.iter(|| {
         let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
-            // ConcurrentSkiplistMode::NoLock
-            ConcurrentSkiplistMode::OneBigLock
+            ConcurrentSkiplistMode::NoLock
+            // ConcurrentSkiplistMode::OneBigLock
         ));
         let mut vec =vec![];
         for i in 1..9 {

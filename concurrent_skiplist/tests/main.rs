@@ -118,9 +118,10 @@ fn multithread() {
         ConcurrentSkiplistMode::NoLock
         // ConcurrentSkiplistMode::OneBigLock
     ));
+    let mut v =vec![];
     for i in 1..10 {
         let map_ = map.clone();
-        thread::spawn(move || {
+        v.push(thread::spawn(move || {
             let time=10000000;
             for j in i * time..(i + 1) * time {
                 map_.insert_or_update(j, j);
@@ -131,6 +132,9 @@ fn multithread() {
                 assert_eq!(v.len(), 1);
                 assert_eq!(*v[0], j);
             }
-        });
+        }));
+    }
+    for t in v {
+        t.join().expect("TODO: panic message");
     }
 }
