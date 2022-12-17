@@ -1,5 +1,8 @@
 // mod get;
 mod insert;
+mod get;
+mod trait_impl;
+mod delete;
 // mod iter;
 
 use std::alloc;
@@ -31,7 +34,8 @@ unsafe impl<K,V> Sync for SkipListjjj<K,V> { }
 
 #[repr(C)] // NB: repr(C) necessary to avoid reordering lanes field, which must be the tail
 struct Node<K,V> {
-    kv: Option<(K,V)>,
+    k: Option<K>,
+    v: Option<V>,
     height: u8,
     lanes: [AtomicPtr<Node<K,V>>; MAX_HEIGHT+1],
 }
@@ -83,9 +87,11 @@ impl<K,V> Node<K,V> {
             NonNull::new_unchecked(Box::into_raw(
                 Box::new(
                     Node{
-                        kv: Some(kv),
+                        k: Some(kv.0),
+                        v: Some(kv.1),
                         height: height as u8,
                         lanes: Default::default(),
+                        // v: None,
                     }
                 )
             )
@@ -101,10 +107,12 @@ impl<K,V> Node<K,V> {
     }
 
     unsafe fn dealloc(&mut self) -> (K,V) {
-        let mut r =None;
-        std::mem::swap(&mut r,&mut self.kv);
+        let mut k =None;
+        let mut v=None;
+        std::mem::swap(&mut k,&mut self.k);
+        std::mem::swap(&mut v,&mut self.v);
         let n=Box::from_raw(self);
-        r.unwrap()
+        (k.unwrap(),v.unwrap())
     }
 
     fn next(&self) -> Ptr<Node<K,V>> {

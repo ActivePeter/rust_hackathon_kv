@@ -3,12 +3,13 @@ use std::mem::ManuallyDrop;
 use std::ptr::{self, NonNull};
 use std::sync::atomic::{AtomicPtr, AtomicU8};
 use std::sync::atomic::Ordering::{Acquire, AcqRel, Release};
+use crate::IndexOperate;
 use crate::lib3::SkipListjjj;
 
 // use crate::AbstractOrd;
 use super::{Ptr, Node, MAX_HEIGHT};
 impl<K:Ord,V> SkipListjjj<K,V> {
-    pub fn insert(&self, k: K,v:V) -> Option<V> {
+    pub(crate) fn insert(&self, k: K, v:V) -> Option<V> {
         let max_height=&self.current_height;
         // insert::insert(&self.lanes[..], (k,v), &self.current_height)
 
@@ -75,10 +76,10 @@ impl<K:Ord,V> SkipListjjj<K,V> {
                         // If not, we will do a comparison between the kvent
                         // to be inserted and the kvent at this node.
                         Some(ptr)   => unsafe {
-                            let node: &Node<K,V> = &*ptr.as_ptr();
+                            let node = &mut*ptr.as_ptr();
                             let (kref,vref) = &*kv;//kv_ptr.as_ref();
 
-                            match kref.cmp(&node.kv.as_ref().unwrap().0) {
+                            match kref.cmp(&node.k.as_ref().unwrap()) {
                                 // If they are equal, this kvent has already
                                 // been inserted into the list, and we need to
                                 // return the kvent we attempted to insert. The
@@ -91,11 +92,13 @@ impl<K:Ord,V> SkipListjjj<K,V> {
                                         // let mut aa =None;
                                         // std::mem::swap(&mut aa,&mut new_node.as_mut().kv);
                                         // =None;
-                                        let aa=new_node.as_mut().dealloc();
+                                        let mut aa =new_node.as_mut().dealloc();
+                                        std::mem::swap(&mut aa.1, node.v.as_mut().unwrap());
                                         return Some(aa.1);
                                     }
                                     None            => {
-                                        let aa=ManuallyDrop::take(&mut kv);
+                                        let mut aa =ManuallyDrop::take(&mut kv);
+                                        std::mem::swap(&mut aa.1, node.v.as_mut().unwrap());
                                         return Some(aa.1);
                                     }
                                 }
@@ -176,6 +179,8 @@ impl<K:Ord,V> SkipListjjj<K,V> {
         }
     }
 }
+
+
 // pub(super) fn insert<K,V>(lanes: &[AtomicPtr<Node<K,V>>], kv: (K,V), max_height: &AtomicU8)
 //                             -> Option<V>
 //     where K: Ord

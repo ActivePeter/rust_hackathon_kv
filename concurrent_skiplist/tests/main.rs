@@ -1,6 +1,7 @@
 use concurrent_skiplist::{ConcurrentSkiplist, ConcurrentSkiplistMode, IndexOperate};
 use rand::Rng;
 use std::{collections::BTreeMap, sync::Arc, thread};
+use std::thread::JoinHandle;
 use concurrent_skiplist::lib3::SkipListjjj;
 // use concurrent_skiplist::lib2::SkipListhhh;
 
@@ -117,14 +118,14 @@ fn single_thread() {
 #[test]
 fn multithread() {
     let map = Arc::new(
-        // SkipListjjj
-        ConcurrentSkiplist
+        SkipListjjj
+        // ConcurrentSkiplist
         // crossbeam_skiplist::SkipMap
             ::<i32, i32>::new(
-        ConcurrentSkiplistMode::NoLock
+        // ConcurrentSkiplistMode::NoLock
         // ConcurrentSkiplistMode::OneBigLock
     ));
-    let mut v =vec![];
+    let mut v=vec![];
     for i in 1..10 {
         let map_ = map.clone();
         v.push(thread::spawn(move || {
@@ -132,12 +133,16 @@ fn multithread() {
             for j in i * time..(i + 1) * time {
                 map_.insert_or_update(j, j);
             }
-            // for j in i * time..(i + 1) * time {
-            //     let end = j + 1;
-            //     let v = map_.get(&j, &end);
-            //     assert_eq!(v.len(), 1);
-            //     assert_eq!(*v[0], j);
-            // }
+            for j in i * time..(i + 1) * time {
+                let end = j + 1;
+                let v = map_.get(&j, &end);
+                // for vv in &v {
+                //     print!("{},",vv);
+                // }
+                // println!();
+                assert_eq!(v.len(), 1);
+                assert_eq!(*v[0], j);
+            }
         }));
     }
     for u in v{

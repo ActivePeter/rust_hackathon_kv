@@ -190,7 +190,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
                 let time=12500;
                 for j in i * time..(i + 1) * time {
-                    map_.insert(j, j);
+                    map_.insert_or_update(j, j);
                 }
                 // for k in 0..100{
                 //     for j in i * time..(i + 1) * time {
