@@ -18,6 +18,7 @@ bumpalo-herd = "0.1.2"
 criterion = "0.4.0"
 
 [[bench]]
-name = "benchall"
+# name = "benchall"
+name = "bench_jjj"
 harness = false
 
