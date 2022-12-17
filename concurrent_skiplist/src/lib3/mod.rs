@@ -106,13 +106,17 @@ impl<K,V> Node<K,V> {
         // }
     }
 
-    unsafe fn dealloc(&mut self) -> (K,V) {
+    unsafe fn dealloc(&mut self) -> Option<(K,V)> {
         let mut k =None;
         let mut v=None;
         std::mem::swap(&mut k,&mut self.k);
         std::mem::swap(&mut v,&mut self.v);
         let n=Box::from_raw(self);
-        (k.unwrap(),v.unwrap())
+        if v.is_some(){
+            Some((k.unwrap(),v.unwrap()))
+        }else{
+            None
+        }
     }
 
     fn next(&self) -> Ptr<Node<K,V>> {

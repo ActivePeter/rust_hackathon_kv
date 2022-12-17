@@ -56,7 +56,7 @@ impl<K:Ord,V> SkipListjjj<K,V> {
                                         // let mut aa =None;
                                         // std::mem::swap(&mut aa,&mut new_node.as_mut().kv);
                                         // =None;
-                                        let mut aa =new_node.as_mut().dealloc();
+                                        let mut aa =new_node.as_mut().dealloc().unwrap();
                                         std::mem::swap(&mut aa.1, node.v.as_mut().unwrap());
                                         return Some(aa.1);
                                     }
