@@ -11,65 +11,29 @@ use super::{Ptr, Node, MAX_HEIGHT};
 impl<K:Ord,V> SkipListjjj<K,V> {
     pub(crate) fn insert(&self, k: K, v:V) -> Option<V> {
         let max_height=&self.current_height;
-        // insert::insert(&self.lanes[..], (k,v), &self.current_height)
-
-        // This wonky memory set up is necessary to handle retry iteration: we do
-        // not know we need to retry the insertion until after we have already
-        // allocated a node for this kvent. We are faced with a dilemma because
-        // of this retry issue:
-        //
-        //  - The first time searching, we do not know if we need to insert. To
-        //    avoid unnecessary allocations, we do not allocate a node for this
-        //    kvent until the first search has turned up empty.
-        //  - When we discover we need to retry, we have already allocated the
-        //    node for the kvent, moving the kvent into the heap. We do not
-        //    want to deallocate it for the search, because we would likely need
-        //    to allocate it again once we find that the kvent is still not
-        //    present.
-        //
-        // For this reason, we access the kvent during search through the
-        // "kv_ptr" variable, which could point either to the kvent in the
-        // stack or the kvent in the heap. We manage dropping/forgetting the kv
-        // correctly using a ManuallyDrop wrapper. The `new_node` pointer is used
-        // to track if the node has been allocated (it has if it is non-null).
+        //总体思路是，确保最下层的被全部链接，tower的build则随缘，失败就跳出
         let mut kv: ManuallyDrop<(K,V)> = ManuallyDrop::new((k,v));
         // let mut kv_ptr: NonNull<(K,V)> = NonNull::from(&*kv);
         let mut new_node: Ptr<Node<K,V>> = None;
 
-        // The 'retry loop handles retrying an insert when it fails completely
-        // (that is, when there  is contention inserting this node into the lowest
-        // lane which contains all nodes). During the insert loop, there is a
-        // single `continue 'retry;`; except for that, the 'retry loop should be
-        // exited on the first iteration.
+        //重试，直到成功插入最后一行
         'retry: loop {
             let mut lanes = &self.lanes[..];
             let mut height = lanes.len();
 
-            // The immediate predecessor and successor of this kvent in each
-            // lane of the skiplist. The predecessor pointer is a pointer to the
-            // actual AtomicPtr in that lane of that node, which will be set to
-            // point to this kvent. The successor pointer is just the address
-            // of the successor node, which this node's pointer will be set to,
-            // and which will be used in a compare and swap operation on the
-            // predecessor pointer.
-            let mut spots : [(*const AtomicPtr<Node<K,V>>, *mut Node<K,V>); MAX_HEIGHT];
-            spots = [(ptr::null(), ptr::null_mut()); MAX_HEIGHT];
+            let mut prevs_succs: [(*const AtomicPtr<Node<K,V>>, *mut Node<K,V>); MAX_HEIGHT];
+            prevs_succs = [(ptr::null(), ptr::null_mut()); MAX_HEIGHT];
 
-            // This is very similar to the search in get, but we track the
-            // predecessors and successors in each lane usin the `spots` variable.
-            // We iterate across the list, visting different nodes, and down each
-            // node's list of lanes, until we find the point in the lowest lane at
-            // which we are to insert our new node.
+            //搜索
             'across: while height > 0 {
                 'down: for atomic_ptr in lanes {
                     let ptr: Ptr<Node<K,V>> = NonNull::new(atomic_ptr.load(Acquire));
 
                     match ptr {
-                        // If the pointer is null, we are at the end of this lane
-                        // and we should move downward.
+                        //到达行尾，向下
                         None        => {
                             height -= 1;
-                            spots[height] = (atomic_ptr, ptr::null_mut());
+                            prevs_succs[height] = (atomic_ptr, ptr::null_mut());
                             continue 'down;
                         }
 
@@ -108,7 +72,7 @@ impl<K:Ord,V> SkipListjjj<K,V> {
                                 // lanes.
                                 Less    => {
                                     height -= 1;
-                                    spots[height] = (atomic_ptr, ptr.as_ptr());
+                                    prevs_succs[height] = (atomic_ptr, ptr.as_ptr());
                                     continue 'down;
                                 }
 
@@ -155,7 +119,7 @@ impl<K:Ord,V> SkipListjjj<K,V> {
             let new_node_lanes = unsafe { new_node.as_ref().lanes() };
             let mut inserted = false;
 
-            'insert: for (new, &(pred, succ)) in new_node_lanes.iter().rev().zip(&spots) {
+            'insert: for (new, &(pred, succ)) in new_node_lanes.iter().rev().zip(&prevs_succs) {
                 let pred: & AtomicPtr<Node<K,V>> = unsafe { &*pred };
 
                 new.store(succ, Release);
