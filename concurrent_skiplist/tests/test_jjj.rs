@@ -156,47 +156,43 @@ fn test_range_hashmap(){
 
 #[test]
 fn single_thread() {
-    // let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
-    //     ConcurrentSkiplistMode::NoLock,
-    // ));
-    // for i in 1..2 {
-    //     let map_ = map.clone();
-    //     thread::spawn(move || {
-    //         for j in i * 1000..(i + 1) * 1000 {
-    //             map_.insert_or_update(j, j);
-    //         }
-    //         for j in i * 1000..(i + 1) * 1000 {
-    //             let end = j + 1;
-    //             let v = map_.get(&j, &end);
-    //             assert_eq!(v.len(), 1);
-    //             assert_eq!(*v[0], j);
-    //         }
-    //     });
-    // }
+    let map = Arc::new(SkipListjjj::<i32, i32>::new());
+    for i in 1..2 {
+        let map_ = map.clone();
+        thread::spawn(move || {
+            for j in i * 1000..(i + 1) * 1000 {
+                map_.insert_or_update(j, j);
+            }
+            for j in i * 1000..(i + 1) * 1000 {
+                let end = j + 1;
+                let v = map_.get(&j, &end);
+                assert_eq!(v.len(), 1);
+                assert_eq!(*v[0], j);
+            }
+        });
+    }
 }
 
 #[test]
 fn multithread() {
-    // let map = Arc::new(ConcurrentSkiplist::<i32, i32>::new(
-    //     ConcurrentSkiplistMode::NoLock, // ConcurrentSkiplistMode::OneBigLock
-    // ));
-    // let mut v = vec![];
-    // for i in 1..2 {
-    //     let map_ = map.clone();
-    //     v.push(thread::spawn(move || {
-    //         let time = 10000;
-    //         for j in i * time..(i + 1) * time {
-    //             map_.insert_or_update(j, j);
-    //         }
-    //         for j in i * time..(i + 1) * time {
-    //             let end = j + 1;
-    //             let v = map_.get(&j, &end);
-    //             assert_eq!(v.len(), 1);
-    //             assert_eq!(*v[0], j);
-    //         }
-    //     }));
-    // }
-    // for u in v {
-    //     u.join().unwrap();
-    // }
+    let map = Arc::new(SkipListjjj::<i32, i32>::new());
+    let mut v = vec![];
+    for i in 1..2 {
+        let map_ = map.clone();
+        v.push(thread::spawn(move || {
+            let time = 10000;
+            for j in i * time..(i + 1) * time {
+                map_.insert_or_update(j, j);
+            }
+            for j in i * time..(i + 1) * time {
+                let end = j + 1;
+                let v = map_.get(&j, &end);
+                assert_eq!(v.len(), 1);
+                assert_eq!(*v[0], j);
+            }
+        }));
+    }
+    for u in v {
+        u.join().unwrap();
+    }
 }
