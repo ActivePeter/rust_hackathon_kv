@@ -1,6 +1,9 @@
 use concurrent_skiplist::{IndexOperate};
 use rand::Rng;
 use std::{collections::BTreeMap, sync::Arc, thread};
+use std::collections::HashMap;
+use std::ptr::NonNull;
+use parking_lot::Mutex;
 use concurrent_skiplist::lib3::SkipListjjj;
 /// cargo test <func_name> --test <file_name> -- --show-output
 /// e.g. cargo test test_insert_batch --test test -- --show-output
@@ -121,6 +124,31 @@ fn test_get_after_delete(){
     let got = our_map.get(&key, &range_end);
     assert_eq!(got.len(),0,"len is wrong, maybe not be delete really")
 }
+
+#[test]
+fn test_range_hashmap(){
+    let mu=Mutex::new(BTreeMap::new());
+    for i in 0..100{
+        mu.lock().insert(i,i);
+    }
+    unsafe {
+        let v={
+            let mut v =vec![];
+            let lo=mu.lock();
+            for x in lo.range(0..100) {
+                v.push(
+                    //NonNull::new
+                    (x.1) as *const i32 );
+            }
+            v
+        };
+        for x in v {
+            print!("{},",(*x));
+        }
+    }
+    println!();
+}
+
 // TODO 多个线程同时插入（每个线程key不冲突），验证结果
 // TODO 多个线程同时删除（每个线程key不冲突），验证结果
 // TODO 待补充
