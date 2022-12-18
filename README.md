@@ -19,3 +19,15 @@
 test_insert_batch 测试插入后读取正确性
 
 test_insert_repeat 测试插入重复值正确性
+
+test_delete_batch 测试删除正确性
+
+test_get_after_delete 测试是否会获取到删除后的值
+
+### 性能测试
+
+单线程性能不如btreemao
+![img.png](rsc/test_1thread_wr.png)
+
+单线程性能不如btreemao
+![img.png](rsc/test_1thread_wr.png)

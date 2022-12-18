@@ -9,27 +9,23 @@ use std::vec;
 use std::{collections::BTreeMap, sync::Arc, thread};
 
 pub fn bench_write_order(c: &mut Criterion) {
+    let cnt=12500;
+    let thread_cnt=10;
     c.bench_function("顺序写效率测试: BTreeMap", |b| {
         b.iter(|| {
             let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new()));
-
-            let m = 1..10000;
-            let n: Vec<i32> = m.clone().map(|x| x + 10000).collect();
-
             let mut vec = vec![];
-            let map_1 = map.clone();
-            vec.push(thread::spawn(move || {
-                for i in m {
-                    map_1.lock().insert(i, i);
-                }
-            }));
 
-            let map_2 = map.clone();
-            vec.push(thread::spawn(move || {
-                for i in n {
-                    map_2.lock().insert(i, i);
-                }
-            }));
+            for i in 0 .. thread_cnt{
+                let map_1 = map.clone();
+                vec.push(thread::spawn(move || {
+                    for j in i*cnt..(i+1)*cnt {
+                        map_1.lock().insert(j, j);
+                    }
+                }));
+            }
+            // let m = 0..10000;
+            // let n = 10000..20000;
             for i in vec {
                 i.join().unwrap();
             }
@@ -40,31 +36,24 @@ pub fn bench_write_order(c: &mut Criterion) {
         b.iter(|| {
             let map = Arc::new(SkipListjjj::<i32, i32>::new());
 
-            let m = 1..10000;
-            let n: Vec<i32> = m.clone().map(|x| x + 10000).collect();
-
             let mut vec = vec![];
-            let map_1 = map.clone();
-            vec.push(thread::spawn(move || {
-                for i in m {
-                    map_1.insert_or_update(i, i);
-                }
-            }));
 
-            let map_2 = map.clone();
-            vec.push(thread::spawn(move || {
-                for i in n {
-                    map_2.insert_or_update(i, i);
-                }
-            }));
-
+            for i in 0 .. thread_cnt{
+                let map_1 = map.clone();
+                vec.push(thread::spawn(move || {
+                    for j in i*cnt..(i+1)*cnt {
+                        map_1.insert_or_update(j, j);
+                    }
+                }));
+            }
+            // let m = 0..10000;
+            // let n = 10000..20000;
             for i in vec {
                 i.join().unwrap();
             }
         })
     });
 }
-
 pub fn bench_write_radom(c: &mut Criterion) {
     c.bench_function("随机写效率测试: BTreeMap", |b| {
         // 为随机写准备数据
@@ -179,8 +168,8 @@ pub fn bench_read_radom(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    // bench_write_order,
-    bench_write_radom,
+    bench_write_order,
+    // bench_write_radom,
     // bench_read_order,
     // bench_read_radom
 );
