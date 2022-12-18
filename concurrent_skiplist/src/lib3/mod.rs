@@ -10,7 +10,7 @@ use std::cmp;
 use std::fmt;
 use std::iter::FromIterator;
 use std::mem;
-use std::ptr::{self, NonNull};
+use std::ptr::{self, NonNull, null_mut};
 use std::sync::atomic::{AtomicPtr, AtomicU8};
 use std::sync::atomic::Ordering::{Relaxed, Acquire};
 use bumpalo_herd::Herd;
@@ -37,7 +37,7 @@ struct Node<K,V> {
     k: Option<K>,
     v: Option<V>,
     height: u8,
-    lanes: [AtomicPtr<Node<K,V>>; MAX_HEIGHT+1],
+    lanes: Vec<AtomicPtr<Node<K,V>>>// MAX_HEIGHT+1],
 }
 
 
@@ -83,6 +83,10 @@ impl<K,V> Node<K,V> {
     fn alloc(kv: (K,V), max_height: &AtomicU8) -> NonNull<Node<K,V>> {
         let height = random_height();
         max_height.fetch_max(height as u8, Relaxed);
+        let mut lanes =Vec::with_capacity(height);
+        for _ in 0..height{
+            lanes.push(AtomicPtr::default());
+        }
         unsafe {
             NonNull::new_unchecked(Box::into_raw(
                 Box::new(
@@ -90,7 +94,7 @@ impl<K,V> Node<K,V> {
                         k: Some(kv.0),
                         v: Some(kv.1),
                         height: height as u8,
-                        lanes: Default::default(),
+                        lanes,
                         // v: None,
                     }
                 )

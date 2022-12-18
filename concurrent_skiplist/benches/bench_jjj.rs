@@ -54,6 +54,62 @@ pub fn bench_write_order(c: &mut Criterion) {
         })
     });
 }
+
+pub fn bench_wr_read_order_1(c: &mut Criterion) {
+    let cnt=12500;
+    let thread_cnt=10;
+    c.bench_function("多线程分范围读: BTreeMap", |b| {
+
+        b.iter(|| {
+            let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new()));
+            let mut vec = vec![];
+            for i in 0..thread_cnt*cnt{
+                map.lock().insert(i,i);
+            }
+            for i in 0 .. thread_cnt{
+                let map_1 = map.clone();
+                vec.push(thread::spawn(move || {
+                    for k in 0..10{
+                        for j in i*cnt..(i+1)*cnt {
+                            map_1.lock().get(&j);
+                        }
+                    }
+                }));
+            }
+            // let m = 0..10000;
+            // let n = 10000..20000;
+            for i in vec {
+                i.join().unwrap();
+            }
+        })
+    });
+
+    c.bench_function("多线程分范围读: SkipListjjj", |b| {
+
+        b.iter(|| {
+            let map = Arc::new(SkipListjjj::<i32, i32>::new());
+            let mut vec = vec![];
+            for i in 0..thread_cnt*cnt{
+                map.insert_or_update(i,i);
+            }
+            for i in 0 .. thread_cnt{
+                let map_1 = map.clone();
+                vec.push(thread::spawn(move || {
+                    for k in 0..10{
+                        for j in i*cnt..(i+1)*cnt {
+                            map_1.get(&j,&(j+1));
+                        }
+                    }
+                }));
+            }
+            // let m = 0..10000;
+            // let n = 10000..20000;
+            for i in vec {
+                i.join().unwrap();
+            }
+        })
+    });
+}
 pub fn bench_write_radom(c: &mut Criterion) {
     c.bench_function("随机写效率测试: BTreeMap", |b| {
         // 为随机写准备数据
@@ -214,15 +270,10 @@ pub fn bench_read_huge(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_write_order,
-<<<<<<< HEAD
+    bench_wr_read_order_1
     // bench_write_radom,
     // bench_read_order,
     // bench_read_radom
-=======
-    bench_write_radom,
-    // bench_read_small,
-    // bench_read_huge,
->>>>>>> origin/lock_free
 );
 
 criterion_main!(benches);

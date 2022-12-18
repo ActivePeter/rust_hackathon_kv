@@ -26,8 +26,11 @@ test_get_after_delete 测试是否会获取到删除后的值
 
 ### 性能测试
 
-单线程性能不如btreemao
+单线程写性能不如btreemap+锁
+
 ![img.png](rsc/test_1thread_wr.png)
 
-单线程性能不如btreemao
-![img.png](rsc/test_1thread_wr.png)
+多线程线程写与btreemao性能差距减小，但是依然要稍慢于btree
+
+![img.png](rsc/test_8thread_wr.png)
+
