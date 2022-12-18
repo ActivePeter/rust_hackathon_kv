@@ -11,3 +11,11 @@
   - 多线程读不同范围的数据
     - 读分为小范围和大范围
 - more 暂时没想到
+
+## test record
+
+### 正确性测试
+
+test_insert_batch 测试插入后读取正确性
+
+test_insert_repeat 测试插入重复值正确性
