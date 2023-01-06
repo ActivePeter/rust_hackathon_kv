@@ -1,2 +1,2 @@
 # rust_hackathon_kv
-并发skiplist实现
+growonly，lockfree 并发skiplist实现
