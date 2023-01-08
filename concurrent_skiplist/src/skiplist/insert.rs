@@ -3,8 +3,9 @@ use std::mem::ManuallyDrop;
 use std::ptr::{self, NonNull};
 use std::sync::atomic::{AtomicPtr, AtomicU8};
 use std::sync::atomic::Ordering::{Acquire, AcqRel, Release};
+use std::sync::mpsc;
 use crate::IndexOperate;
-use crate::lib3::SkipListjjj;
+use crate::skiplist::SkipListjjj;
 
 use super::{Ptr, Node, MAX_HEIGHT};
 impl<K:Ord,V> SkipListjjj<K,V> {
@@ -14,6 +15,8 @@ impl<K:Ord,V> SkipListjjj<K,V> {
         let mut kv: ManuallyDrop<(K,V)> = ManuallyDrop::new((k,v));
         // let mut kv_ptr: NonNull<(K,V)> = NonNull::from(&*kv);
         let mut new_node: Ptr<Node<K,V>> = None;
+
+        // auto (t,r)=mpsc::channel::<i32>();
 
         //重试，直到成功插入最后一行
         'retry: loop {
@@ -54,8 +57,13 @@ impl<K:Ord,V> SkipListjjj<K,V> {
                                     }
                                     None            => {
                                         let mut aa =ManuallyDrop::take(&mut kv);
-                                        std::mem::swap(&mut aa.1, node.v.as_mut().unwrap());
-                                        return Some(aa.1);
+                                        if(node.v.as_mut().is_some()){
+                                            std::mem::swap(&mut aa.1, node.v.as_mut().unwrap());
+                                            return Some(aa.1);
+                                        }else{
+                                            return None;
+                                        }
+
                                     }
                                 }
 

@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, sync::Arc, thread};
 use std::collections::HashMap;
 use std::ptr::NonNull;
 use parking_lot::Mutex;
-use concurrent_skiplist::lib3::SkipListjjj;
+use concurrent_skiplist::skiplist::SkipListjjj;
 /// cargo test <func_name> --test <file_name> -- --show-output
 /// e.g. cargo test test_insert_batch --test test -- --show-output
 #[test]

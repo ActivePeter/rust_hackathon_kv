@@ -1,7 +1,7 @@
-use concurrent_skiplist::lib3::SkipListjjj;
+use concurrent_skiplist::skiplist::SkipListjjj;
 use concurrent_skiplist::IndexOperate;
 // use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, Bencher};
 use parking_lot::Mutex;
 use rand::Rng;
 use std::vec;
@@ -75,47 +75,99 @@ pub fn bench_write_order(c: &mut Criterion) {
     });
 }
 
-pub fn bench_wr_read_order_1(c: &mut Criterion) {
-    c.bench_function("多线程分范围读: BTreeMap", |b| {
-        let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new()));
-        for i in 0..READ_WR_THREAD * READ_WR_CAPACITY {
-            map.lock().insert(i, i);
-        }
-        b.iter(move|| {
-            let mut vec = vec![];
-            for i in 0..READ_WR_THREAD {
-                let map_1 = map.clone();
-                vec.push(thread::spawn(move || {
-                    for j in i * READ_WR_CAPACITY..(i + 1) * READ_WR_CAPACITY {
-                        map_1.lock().get(&j);
+
+fn threads_read_btree(range:i32,b:&mut Bencher){
+    let thread_cnt=10;
+    // 为大量读准备数据
+    let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new()));
+    let m = 0..range * thread_cnt;//10个线程
+    for i in m {
+        map.lock().insert(i, i);
+    }
+    b.iter(move || {
+        // 大量读
+        let mut vec = vec![];
+        for i in 0..thread_cnt {
+            let map_1 = map.clone();
+            vec.push(thread::spawn(move || {
+
+                for _ in 0..100 {
+                    let mut reses =vec![];
+                    for x in map_1.lock().range(i * range..(i + 1) * range) {
+                        reses.push(x.1);
                     }
-                }));
-            }
-            for i in vec {
-                i.join().unwrap();
-            }
-        })
+                }
+
+                // for j in i*range..(i+1)*range {
+                //     let res=map_1.lock().remove(&j);
+                //     reses.push(res.unwrap());
+                // }
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+    })
+}
+fn threads_read_skiplist(range:i32,b:&mut Bencher){
+    let thread_cnt=10;
+    // 为大量读准备数据
+    let map = Arc::new(SkipListjjj::<i32, i32>::new());
+    let m = 0..range * thread_cnt;//10个线程
+    for i in m {
+        map.insert_or_update(i, i);
+    }
+    b.iter(move || {
+        let mut vec = vec![];
+        for i in 0..thread_cnt {
+            let map_1 = map.clone();
+            vec.push(thread::spawn(move || {
+                for _ in 0..100 {
+                    assert_eq!(map_1.get(&(i*range),&((i+1)*range)).len(),range as usize);
+                }
+                // let mut reses =vec![];
+
+                // // for j in i*range..(i+1)*range {
+                // reses.push(map_1.delete(&(i*range),&((i+1)*range)))
+
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+    })
+}
+
+pub fn bench_read(c: &mut Criterion) {
+    c.bench_function("多线程分范围1读: BTreeMap", |b| {
+        threads_read_btree(1,b);
     });
 
-    c.bench_function("多线程分范围读: SkipListjjj", |b| {
-        let map = Arc::new(SkipListjjj::<i32, i32>::new());
-        for i in 0..READ_WR_THREAD * READ_WR_CAPACITY {
-            map.insert_or_update(i, i);
-        }
-        b.iter(|| {
-            let mut vec = vec![];
-            for i in 0..READ_WR_THREAD {
-                let map_1 = map.clone();
-                vec.push(thread::spawn(move || {
-                    for j in i * READ_WR_CAPACITY..(i + 1) * READ_WR_CAPACITY {
-                        map_1.get(&j, &(j + 1));
-                    }
-                }));
-            }
-            for i in vec {
-                i.join().unwrap();
-            }
-        })
+    c.bench_function("多线程分范围1读: SkipListjjj", |b| {
+        threads_read_skiplist(1,b);
+    });
+    c.bench_function("多线程分范围100读: BTreeMap", |b| {
+        threads_read_btree(100,b);
+    });
+
+    c.bench_function("多线程分范围100读: SkipListjjj", |b| {
+        threads_read_skiplist(100,b);
+    });
+
+    c.bench_function("多线程分范围10000读: BTreeMap", |b| {
+        threads_read_btree(10000,b);
+    });
+
+    c.bench_function("多线程分范围10000读: SkipListjjj", |b| {
+        threads_read_skiplist(10000,b);
+    });
+
+    c.bench_function("多线程分范围100000读: BTreeMap", |b| {
+        threads_read_btree(100000,b);
+    });
+
+    c.bench_function("多线程分范围100000读: SkipListjjj", |b| {
+        threads_read_skiplist(100000,b);
     });
 }
 
@@ -175,127 +227,99 @@ pub fn bench_write_radom(c: &mut Criterion) {
     });
 }
 
-pub fn bench_read_small(c: &mut Criterion) {
-    c.bench_function("少量范围读效率测试: BTreeMap", |b| {
-        // 为少量读准备数据
-        let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new()));
-        let m = 0..READ_SMALL_CAPACITY * READ_SMALL_THREAD;
+
+
+
+fn threads_delete_btree(range:i32,b:&mut Bencher){
+    let thread_cnt=10;
+    // 为大量读准备数据
+    let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new()));
+
+    b.iter(move || {
+        let m = 0..range * thread_cnt;//10个线程
         for i in m {
             map.lock().insert(i, i);
         }
+        // 大量读
+        let mut vec = vec![];
+        for i in 0..thread_cnt {
+            let map_1 = map.clone();
+            vec.push(thread::spawn(move || {
+                let mut reses =vec![];
+                for j in i*range..(i+1)*range {
+                    let res=map_1.lock().remove(&j);
+                    reses.push(res.unwrap());
+                }
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+    })
+}
+fn threads_delete_skiplist(range:i32,b:&mut Bencher){
+    let thread_cnt=10;
+    // 为大量读准备数据
+    let map = Arc::new(SkipListjjj::<i32, i32>::new());
 
-        b.iter(move || {
-            // 少量读
-            let mut vec = vec![];
-            for i in 0..READ_SMALL_THREAD {
-                let map_1 = map.clone();
-                vec.push(thread::spawn(move || {
-                    for j in 0..READ_SMALL_CAPACITY / READ_SMALL {
-                        let _p = map_1.lock().range(
-                            j + i * READ_SMALL_CAPACITY..j + READ_SMALL + i * READ_SMALL_CAPACITY,
-                        );
-                    }
-                }));
-            }
-            for i in vec {
-                i.join().unwrap();
-            }
-        })
-    });
-
-    c.bench_function("少量范围读效率测试: SkipListjjj", |b| {
-        // 为少量读准备数据
-        let map = Arc::new(SkipListjjj::<i32, i32>::new());
-        let m = 0..READ_SMALL_CAPACITY * READ_SMALL_THREAD;
+    b.iter(move || {
+        let m = 0..range * thread_cnt;//10个线程
         for i in m {
             map.insert_or_update(i, i);
         }
+        // 大量读
+        let mut vec = vec![];
+        for i in 0..thread_cnt {
+            let map_1 = map.clone();
+            vec.push(thread::spawn(move || {
+                let mut reses =vec![];
+                // for j in i*range..(i+1)*range {
+                    reses.push(map_1.delete(&(i*range),&((i+1)*range)))
 
-        b.iter(move || {
-            // 少量读
-            let mut vec = vec![];
-            for i in 0..READ_SMALL_THREAD {
-                let map_1 = map.clone();
-                vec.push(thread::spawn(move || {
-                    for j in 0..READ_SMALL_CAPACITY / READ_SMALL {
-                        let _p = map_1.get(
-                            &(j + i * READ_SMALL_CAPACITY),
-                            &(j + READ_SMALL + i * READ_SMALL_CAPACITY),
-                        );
-                    }
-                }));
-            }
-            for i in vec {
-                i.join().unwrap();
-            }
-        })
-    });
+            }));
+        }
+        for i in vec {
+            i.join().unwrap();
+        }
+    })
 }
 
-pub fn bench_read_huge(c: &mut Criterion) {
-    c.bench_function("大量范围读效率测试: BTreeMap", |b| {
-        // 为大量读准备数据
-        let map = Arc::new(Mutex::new(BTreeMap::<i32, i32>::new()));
-        let m = 0..READ_HUGE_CAPACITY * READ_HUGE_THREAD;
-        for i in m {
-            map.lock().insert(i, i);
-        }
-
-        b.iter(move || {
-            // 大量读
-            let mut vec = vec![];
-            for i in 0..READ_HUGE_THREAD {
-                let map_1 = map.clone();
-                vec.push(thread::spawn(move || {
-                    for j in 0..READ_HUGE_CAPACITY / READ_HUGE {
-                        let _p = map_1.lock().range(
-                            j + i * READ_HUGE_CAPACITY..j + READ_HUGE + i * READ_HUGE_CAPACITY,
-                        );
-                    }
-                }));
-            }
-            for i in vec {
-                i.join().unwrap();
-            }
-        })
+pub fn bench_delete(c: &mut Criterion) {
+    c.bench_function("1范围删除效率测试: BTreeMap", |b| {
+        threads_delete_btree(1,b);
+    });
+    c.bench_function("1范围删除效率测试: SkipListjjj", |b| {
+        threads_delete_skiplist(1,b);
+    });
+    c.bench_function("100范围删除效率测试: BTreeMap", |b| {
+        threads_delete_btree(100,b);
     });
 
-    c.bench_function("大量范围读效率测试: SkipListjjj", |b| {
-        // 为大量读准备数据
-        let map = Arc::new(SkipListjjj::<i32, i32>::new());
-        let m = 0..READ_HUGE_CAPACITY * READ_HUGE_THREAD;
-        for i in m {
-            map.insert_or_update(i, i);
-        }
+    c.bench_function("100范围删除效率测试: SkipListjjj", |b| {
+        threads_delete_skiplist(100,b);
+    });
+    c.bench_function("10000范围删除效率测试: BTreeMap", |b| {
+        threads_delete_btree(10000,b);
+    });
 
-        b.iter(move || {
-            // 大量读
-            let mut vec = vec![];
-            for i in 0..READ_HUGE_THREAD {
-                let map_1 = map.clone();
-                vec.push(thread::spawn(move || {
-                    for j in 0..READ_HUGE_CAPACITY / READ_HUGE {
-                        let _p = map_1.get(
-                            &(j + i * READ_HUGE_CAPACITY),
-                            &(j + READ_HUGE + i * READ_HUGE_CAPACITY),
-                        );
-                    }
-                }));
-            }
-            for i in vec {
-                i.join().unwrap();
-            }
-        })
+    c.bench_function("10000范围删除效率测试: SkipListjjj", |b| {
+        threads_delete_skiplist(10000,b);
+    });
+    c.bench_function("100000范围删除效率测试: BTreeMap", |b| {
+        threads_delete_btree(100000,b);
+    });
+
+    c.bench_function("100000范围删除效率测试: SkipListjjj", |b| {
+        threads_delete_skiplist(100000,b);
     });
 }
 
 criterion_group!(
     benches,
-    bench_write_order,
-    bench_wr_read_order_1,
-    bench_write_radom,
-    bench_read_small,
-    bench_read_huge,
+    // bench_write_order,
+    // bench_write_radom,
+    // bench_read,
+    bench_delete,
 );
 
 criterion_main!(benches);

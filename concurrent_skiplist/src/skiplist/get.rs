@@ -2,15 +2,16 @@ use std::cmp::Ordering;
 use std::ptr::{NonNull, null_mut};
 use std::sync::atomic::Ordering::Acquire;
 use crate::IndexOperate;
-use crate::lib3::{Node, Ptr, SkipListjjj};
+use crate::skiplist::{Node, Ptr, SkipListjjj};
 
 impl<K:Ord,V> SkipListjjj<K,V>{
     pub fn inner_get(&self, key: &K, range_end: &K) -> Vec<&V>{
         let mut lanes=&self.lanes[..];
         let mut height = lanes.len();
         let mut v =vec![];
-
         let mut ptr = NonNull::new(null_mut());
+        let (sender,rx)=std::sync::mpsc::channel::<i32>();
+
         'across: while height > 0 {
             'down: for atomic_ptr in lanes {
                 ptr=NonNull::new(atomic_ptr.load(Acquire));

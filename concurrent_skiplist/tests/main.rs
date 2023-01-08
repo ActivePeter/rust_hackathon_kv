@@ -2,7 +2,7 @@
 // use rand::Rng;
 // use std::{collections::BTreeMap, sync::Arc, thread};
 // use std::thread::JoinHandle;
-// use concurrent_skiplist::lib3::SkipListjjj;
+// use concurrent_skiplist::skiplist::SkipListjjj;
 // // use concurrent_skiplist::lib2::SkipListhhh;
 
 // #[test]

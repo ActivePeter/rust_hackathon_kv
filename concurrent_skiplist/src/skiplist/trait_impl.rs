@@ -1,5 +1,5 @@
 use crate::IndexOperate;
-use crate::lib3::SkipListjjj;
+use crate::skiplist::SkipListjjj;
 
 impl<K:Ord,V> IndexOperate<K, V> for SkipListjjj<K,V>{
     fn get(&self, key: &K, range_end: &K) -> Vec<&V> {

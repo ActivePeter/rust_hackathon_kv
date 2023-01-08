@@ -1,7 +1,7 @@
 
 
 // pub mod lib2;
-pub mod lib3;
+pub mod skiplist;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::LinkedList;

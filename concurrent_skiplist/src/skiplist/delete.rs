@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::ptr::{NonNull, null_mut};
 use std::sync::atomic::Ordering::Acquire;
 use crate::IndexOperate;
-use crate::lib3::{Node, SkipListjjj};
+use crate::skiplist::{Node, SkipListjjj};
 
 impl<K:Ord,V>  SkipListjjj<K,V>{
     /// delete a range of keys in [key, range_end]
