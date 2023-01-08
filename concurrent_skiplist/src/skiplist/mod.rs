@@ -49,27 +49,6 @@ impl<K:Ord,V> SkipListjjj<K,V> {
             // herd: Default::default(),
         }
     }
-    // fn alloc_node(&self,kv: (K,V), max_height: &AtomicU8) -> NonNull<Node<K,V>> {
-    //     let height = random_height();
-    //     max_height.fetch_max(height as u8, Relaxed);
-    //     unsafe {
-    //         NonNull::new_unchecked(self.herd.get().alloc(
-    //                                Node{
-    //                                    kv: Some(kv),
-    //                                    height: height as u8,
-    //                                    lanes: Default::default(),
-    //                                })
-    //
-    //         )
-    //     }
-    //     // unsafe {
-    //     //     let layout = Node::<K,V>::layout(height);
-    //     //     let ptr = alloc::alloc_zeroed(layout) as *mut Node<K,V>;
-    //     //     (*ptr).height = height as u8;
-    //     //     ptr::write(&mut (*ptr).kv as *mut (K,V), kv);
-    //     //     NonNull::new_unchecked(ptr)
-    //     // }
-    // }
 }
 
 impl<K,V> SkipListjjj<K,V> {
@@ -101,13 +80,6 @@ impl<K,V> Node<K,V> {
             )
             )
         }
-        // unsafe {
-        //     let layout = Node::<K,V>::layout(height);
-        //     let ptr = alloc::alloc_zeroed(layout) as *mut Node<K,V>;
-        //     (*ptr).height = height as u8;
-        //     ptr::write(&mut (*ptr).kv as *mut (K,V), kv);
-        //     NonNull::new_unchecked(ptr)
-        // }
     }
 
     unsafe fn dealloc(&mut self) -> Option<(K,V)> {
@@ -128,15 +100,6 @@ impl<K,V> Node<K,V> {
     }
 
     fn lanes(&self) -> &[AtomicPtr<Node<K,V>>] {
-        // #[repr(C)]
-        // struct LanesPtr<K,V> {
-        //     lanes: *const Lanes<K,V>,
-        //     height: usize,
-        // }
-        //
-        // let lanes = &self.lanes as *const Lanes<K,V>;
-        // let height = self.height();
-        // unsafe { mem::transmute(LanesPtr { lanes, height }) }
         &self.lanes[0..self.height()]
     }
 
@@ -144,13 +107,6 @@ impl<K,V> Node<K,V> {
         self.height as usize
     }
 
-    fn layout(height: usize) -> alloc::Layout {
-        let size = ((height + 1) * mem::size_of::<usize>()) + mem::size_of::<(K,V)>();
-        let align = cmp::max(mem::align_of::<(K,V)>(), mem::align_of::<usize>());
-        unsafe {
-            alloc::Layout::from_size_align_unchecked(size, align)
-        }
-    }
 }
 
 
@@ -170,30 +126,6 @@ impl<K,V> Drop for SkipListjjj<K,V> {
         }
     }
 }
-
-// impl<T: AbstractOrd<K,V>> Extend<K,V> for SkipListjjj<K,V> {
-//     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-//         iter.into_iter().for_each(|kv| {
-//             self.insert(kv);
-//         });
-//     }
-// }
-//
-// impl<'a, T: AbstractOrd<K,V> + Copy> Extend<&'a T> for SkipListjjj<K,V> {
-//     fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
-//         iter.into_iter().for_each(|&kv| {
-//             self.insert(kv);
-//         });
-//     }
-// }
-//
-// impl<T: AbstractOrd<K,V>> FromIterator<K,V> for SkipListjjj<K,V> {
-//     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-//         let mut list = Self::new();
-//         list.extend(iter);
-//         list
-//     }
-// }
 
 fn random_height() -> usize {
     const MASK: u32 = 1 << (MAX_HEIGHT - 1);
