@@ -15,22 +15,16 @@ impl<K:Ord,V> SkipListjjj<K,V> {
         let mut kv: ManuallyDrop<(K,V)> = ManuallyDrop::new((k,v));
         // let mut kv_ptr: NonNull<(K,V)> = NonNull::from(&*kv);
         let mut new_node: Ptr<Node<K,V>> = None;
-
-        // auto (t,r)=mpsc::channel::<i32>();
-
         //重试，直到成功插入最后一行
         'retry: loop {
             let mut lanes = &self.lanes[..];
             let mut height = lanes.len();
-
             let mut prevs_succs: [(*const AtomicPtr<Node<K,V>>, *mut Node<K,V>); MAX_HEIGHT];
             prevs_succs = [(ptr::null(), ptr::null_mut()); MAX_HEIGHT];
-
             //搜索
             'across: while height > 0 {
                 'down: for atomic_ptr in lanes {
                     let ptr: Ptr<Node<K,V>> = NonNull::new(atomic_ptr.load(Acquire));
-
                     match ptr {
                         //到达行尾，向下
                         None        => {
